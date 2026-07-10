@@ -50,6 +50,47 @@ export function retintMonaco(base: "dark" | "light", editorBg: string) {
   monaco.editor.setTheme(base === "dark" ? "elasticmin-dark" : "elasticmin-light");
 }
 
+// --- field-path autocomplete (fed by the active query tab's index mapping) ---
+let completionFields: string[] = [];
+export function setCompletionFields(fields: string[]) {
+  completionFields = fields;
+}
+
+const DSL_KEYWORDS = [
+  "query", "bool", "must", "must_not", "should", "filter", "term", "terms", "match",
+  "match_all", "match_phrase", "range", "exists", "wildcard", "prefix", "regexp", "ids",
+  "nested", "gte", "lte", "gt", "lt", "sort", "size", "from", "_source", "aggs",
+  "track_total_hits", "minimum_should_match", "query_string", "multi_match", "order",
+];
+
+monaco.languages.registerCompletionItemProvider("json", {
+  triggerCharacters: ['"'],
+  provideCompletionItems(model, position) {
+    const word = model.getWordUntilPosition(position);
+    const range = new monaco.Range(
+      position.lineNumber, word.startColumn, position.lineNumber, word.endColumn,
+    );
+    return {
+      suggestions: [
+        ...completionFields.map((f) => ({
+          label: f,
+          kind: monaco.languages.CompletionItemKind.Field,
+          insertText: f,
+          detail: "mapping field",
+          range,
+        })),
+        ...DSL_KEYWORDS.map((k) => ({
+          label: k,
+          kind: monaco.languages.CompletionItemKind.Keyword,
+          insertText: k,
+          detail: "query DSL",
+          range,
+        })),
+      ],
+    };
+  },
+});
+
 loader.config({ monaco });
 
 export { monaco };

@@ -17,12 +17,15 @@ const WORKSPACE_NAV: { kind: TabKind; icon: string; iconClass: string; label: st
   { kind: "mapping", icon: "⌬", iconClass: "soft-blue", label: "Mapping" },
   { kind: "create-index", icon: "＋", iconClass: "soft-green", label: "Create Index" },
   { kind: "cluster", icon: "◌", iconClass: "soft-green", label: "Cluster" },
+  { kind: "history", icon: "↺", iconClass: "soft-orange", label: "Query History" },
   { kind: "settings", icon: "⚙", iconClass: "soft-orange", label: "Settings", meta: "⌘," },
 ];
 
 export function Sidebar() {
   const [filter, setFilter] = useState("");
   const [connMenu, setConnMenu] = useState<{ x: number; y: number; id: string } | null>(null);
+  const [queryMenu, setQueryMenu] = useState<{ x: number; y: number; id: string } | null>(null);
+  const [indexMenu, setIndexMenu] = useState<{ x: number; y: number; index: string } | null>(null);
   const conn = useActiveConnection();
   const health = useClusterHealth();
   const indices = useIndices();
@@ -30,6 +33,7 @@ export function Sidebar() {
   const {
     connections, activeConnId, setActiveConn, deleteConnection, setEditingConn,
     tabs, activeTabId, openTab, activeIndex, setActiveIndex, showToast,
+    savedQueries, deleteSavedQuery, renameSavedQuery, newQueryTab, history,
   } = useApp();
 
   const activeKind = tabs.find((t) => t.id === activeTabId)?.kind;
@@ -120,10 +124,40 @@ export function Sidebar() {
             >
               <span className={item.iconClass}>{item.icon}</span>
               <span>{item.label}</span>
-              <span>{item.meta?.startsWith("⌘") ? <span className="kbd">{item.meta}</span> : item.meta ?? ""}</span>
+              <span>
+                {item.kind === "history"
+                  ? history.length || ""
+                  : item.meta?.startsWith("⌘")
+                    ? <span className="kbd">{item.meta}</span>
+                    : item.meta ?? ""}
+              </span>
             </div>
           ))}
         </div>
+
+        {savedQueries.length > 0 && (
+          <div className="group">
+            <div className="group-title"><span>Saved queries</span><span>{savedQueries.length}</span></div>
+            {savedQueries
+              .filter((sq) => !q || sq.name.toLowerCase().includes(q))
+              .map((sq) => (
+                <div
+                  key={sq.id}
+                  className="nav-item"
+                  title={`${sq.method} ${sq.path}`}
+                  onClick={() => newQueryTab({ method: sq.method, path: sq.path, body: sq.body })}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setQueryMenu({ x: e.clientX, y: e.clientY, id: sq.id });
+                  }}
+                >
+                  <span className="soft-blue">⌘</span>
+                  <span>{sq.name}</span>
+                  <Badge>{sq.method}</Badge>
+                </div>
+              ))}
+          </div>
+        )}
 
         <div className="group">
           <div className="group-title">
@@ -139,6 +173,11 @@ export function Sidebar() {
               onDoubleClick={() => {
                 setActiveIndex(i.index);
                 openTab("docs");
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setActiveIndex(i.index);
+                setIndexMenu({ x: e.clientX, y: e.clientY, index: i.index });
               }}
             >
               <IndexDot health={i.health} />
@@ -162,6 +201,57 @@ export function Sidebar() {
       </div>
       {connMenu && (
         <ContextMenu x={connMenu.x} y={connMenu.y} items={connMenuItems} onClose={() => setConnMenu(null)} />
+      )}
+      {indexMenu && (
+        <ContextMenu
+          x={indexMenu.x}
+          y={indexMenu.y}
+          onClose={() => setIndexMenu(null)}
+          items={[
+            { icon: "▤", label: "Open Documents", strong: true, onClick: () => openTab("docs") },
+            {
+              icon: "⌁", label: "Open in Query", strong: true,
+              onClick: () => newQueryTab({ path: `/${indexMenu.index}/_search` }),
+            },
+            { icon: "⌬", label: "Open Mapping", onClick: () => openTab("mapping") },
+            { icon: "∿", label: "Index stats", onClick: () => openTab("index-stats") },
+          ]}
+        />
+      )}
+      {queryMenu && (
+        <ContextMenu
+          x={queryMenu.x}
+          y={queryMenu.y}
+          onClose={() => setQueryMenu(null)}
+          items={[
+            {
+              icon: "⌁",
+              label: "Open in new Query tab",
+              strong: true,
+              onClick: () => {
+                const sq = savedQueries.find((x) => x.id === queryMenu.id);
+                if (sq) newQueryTab({ method: sq.method, path: sq.path, body: sq.body });
+              },
+            },
+            {
+              icon: "✎",
+              label: "Rename",
+              onClick: () => {
+                const sq = savedQueries.find((x) => x.id === queryMenu.id);
+                const name = window.prompt("Rename saved query:", sq?.name ?? "");
+                if (name?.trim()) renameSavedQuery(queryMenu.id, name);
+              },
+            },
+            {
+              icon: "×",
+              label: "Delete",
+              onClick: () => {
+                deleteSavedQuery(queryMenu.id);
+                showToast("Saved query deleted", "Removed from this workspace.");
+              },
+            },
+          ]}
+        />
       )}
     </aside>
   );

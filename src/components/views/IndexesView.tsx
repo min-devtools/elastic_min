@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
+import { esJson } from "../../lib/es";
 import { ToolButton } from "../../ui/ToolButton";
 import { Badge } from "../../ui/Badge";
 import { HealthPill } from "../../ui/Pills";
@@ -12,6 +14,7 @@ import { formatDocCount } from "../../lib/format";
 export function IndexesView({ active }: { active: boolean }) {
   const conn = useActiveConnection();
   const indices = useIndices();
+  const queryClient = useQueryClient();
   const { openTab, setActiveIndex, newQueryTab, showToast } = useApp();
   const [filter, setFilter] = useState("");
   const [menu, setMenu] = useState<{ x: number; y: number; index: string } | null>(null);
@@ -45,10 +48,39 @@ export function IndexesView({ active }: { active: boolean }) {
           },
         },
         {
+          icon: "∿", label: "Index stats", strong: true,
+          onClick: () => {
+            setActiveIndex(menu.index);
+            openTab("index-stats");
+          },
+        },
+        {
           icon: "⎘", label: "Copy index name",
           onClick: () => {
             void writeText(menu.index);
             showToast("Copied", `${menu.index} copied to clipboard.`);
+          },
+        },
+        {
+          icon: "×", label: "Delete index…",
+          onClick: () => {
+            // type-the-name confirmation — deleting an index is unrecoverable
+            const typed = window.prompt(
+              `This permanently deletes the index and ALL its documents.\nType "${menu.index}" to confirm:`,
+            );
+            if (typed !== menu.index) {
+              if (typed !== null) showToast("Not deleted", "Name did not match.", "warn");
+              return;
+            }
+            void (async () => {
+              try {
+                await esJson(conn!, "DELETE", `/${encodeURIComponent(menu.index)}`);
+                showToast("Index deleted", `${menu.index} removed from the cluster.`);
+                void queryClient.invalidateQueries({ queryKey: ["indices"] });
+              } catch (err) {
+                showToast("Delete failed", String(err), "err");
+              }
+            })();
           },
         },
       ]

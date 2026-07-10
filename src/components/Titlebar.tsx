@@ -6,6 +6,7 @@ import { runActiveQuery } from "../lib/runQuery";
 import { useApp } from "../store";
 import { useActiveConnection, useClusterHealth } from "../lib/queries";
 import logo from "../assets/logo.png";
+import { themeBase } from "../lib/themes";
 
 export function Titlebar() {
   const conn = useActiveConnection();
@@ -60,7 +61,7 @@ export function Titlebar() {
           <Icon name="refresh" /> Refresh
         </ToolButton>
         <ToolButton title="Toggle theme" onClick={toggleTheme}>
-          <Icon name={theme === "dark" ? "sun" : "moon"} />
+          <Icon name={themeBase(theme) === "dark" ? "sun" : "moon"} />
         </ToolButton>
         <ToolButton title="Toggle compact density" onClick={toggleCompact}>
           <Icon name="rows" />

@@ -54,7 +54,9 @@ export type TabKind =
   | "create-index"
   | "cluster"
   | "mapping"
-  | "settings";
+  | "settings"
+  | "history"
+  | "index-stats";
 
 export interface TabDef {
   id: string;
@@ -79,4 +81,23 @@ export interface QueryTabState {
   body: string;
   result: QueryResult | null;
   running: boolean;
+}
+
+export interface SavedQuery {
+  id: string;
+  name: string;
+  method: string;
+  path: string;
+  body: string;
+  createdAt: number;
+}
+
+export interface HistoryEntry {
+  at: number;
+  method: string;
+  path: string;
+  body: string;
+  status: number;
+  timeMs: number;
+  hits: number | null;
 }

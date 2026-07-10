@@ -231,7 +231,8 @@ export function SettingsView({ active }: { active: boolean }) {
             {[
               ["⌘↵", "Run current query"],
               ["⌘N", "New query tab"],
-              ["⌘W", "Close current tab"],
+              ["⌘S", "Save query (sidebar + ⌘K)"],
+              ["⌘W", "Close current tab (middle-click too)"],
               ["⌘1…9", "Jump to tab N (double-click a query tab to rename)"],
               ["⌘K", "Search everywhere / command palette"],
               ["⌘B", "Toggle left sidebar"],

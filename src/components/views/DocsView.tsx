@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { ToolButton } from "../../ui/ToolButton";
 import { Badge } from "../../ui/Badge";
 import { Icon } from "../../ui/Icon";
@@ -15,7 +16,7 @@ type SortDir = "desc" | "asc";
 
 export function DocsView({ active }: { active: boolean }) {
   const conn = useActiveConnection();
-  const { activeIndex, selectedDoc, selectDoc } = useApp();
+  const { activeIndex, selectedDoc, selectDoc, showToast } = useApp();
   const index = activeIndex ?? conn?.defaultIndex ?? "";
   const mapping = useMappingFields(index || null);
   const [filter, setFilter] = useState("");
@@ -134,9 +135,14 @@ export function DocsView({ active }: { active: boolean }) {
                   return (
                     <td
                       key={c}
+                      title="Click: inspect · double-click: copy value"
                       onClick={(e) => {
                         e.stopPropagation();
                         selectDoc(h, c);
+                      }}
+                      onDoubleClick={() => {
+                        void writeText(formatValue(v));
+                        showToast("Copied", `${c} value copied.`);
                       }}
                     >
                       <span className={`path-value ${valueClass(c, v)}`}>{formatValue(v)}</span>

@@ -39,6 +39,13 @@ export function valueClass(path: string, value: unknown): string {
   return "keyword";
 }
 
+export function formatBytes(bytes: number): string {
+  if (!bytes) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.min(units.length - 1, Math.floor(Math.log2(bytes) / 10));
+  return `${(bytes / 2 ** (10 * i)).toFixed(i ? 1 : 0)} ${units[i]}`;
+}
+
 export function formatDocCount(count: number): string {
   if (count >= 1e9) return `${(count / 1e9).toFixed(1)}b`;
   if (count >= 1e6) return `${(count / 1e6).toFixed(1)}m`;

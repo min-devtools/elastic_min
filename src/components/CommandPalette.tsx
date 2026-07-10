@@ -39,9 +39,18 @@ export function CommandPalette() {
       { icon: "◌", label: "Show cluster health", action: () => app.openTab("cluster") },
       { icon: "⌬", label: "Open Mapping viewer", action: () => app.openTab("mapping") },
       { icon: "⚙", label: "Open Settings", kbd: "⌘,", action: () => app.openTab("settings") },
+      { icon: "↺", label: "Open Query History", action: () => app.openTab("history") },
+      { icon: "∿", label: "Index stats (active index)", action: () => app.openTab("index-stats") },
       { icon: "☾", label: "Toggle theme", action: () => app.toggleTheme() },
       { icon: "⌨", label: "Toggle vim mode", action: () => app.toggleVim() },
     ];
+    for (const sq of app.savedQueries) {
+      base.push({
+        icon: "⌘",
+        label: `Open saved query: ${sq.name}`,
+        action: () => app.newQueryTab({ method: sq.method, path: sq.path, body: sq.body }),
+      });
+    }
     for (const c of app.connections) {
       base.push({
         icon: "⎇",

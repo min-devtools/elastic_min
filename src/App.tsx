@@ -17,8 +17,10 @@ import { CreateIndexView } from "./components/views/CreateIndexView";
 import { ClusterView } from "./components/views/ClusterView";
 import { MappingView } from "./components/views/MappingView";
 import { SettingsView } from "./components/views/SettingsView";
+import { HistoryView } from "./components/views/HistoryView";
+import { IndexStatsView } from "./components/views/IndexStatsView";
 import { inspectorAvailable, useApp } from "./store";
-import { runActiveQuery } from "./lib/runQuery";
+import { runActiveQuery, saveActiveQuery } from "./lib/runQuery";
 import { themeBase } from "./lib/themes";
 import { retintMonaco } from "./lib/monaco";
 import type { TabDef } from "./lib/types";
@@ -35,6 +37,8 @@ function renderView(tab: TabDef, active: boolean) {
     case "cluster": return <ClusterView key={tab.id} active={active} />;
     case "mapping": return <MappingView key={tab.id} active={active} />;
     case "settings": return <SettingsView key={tab.id} active={active} />;
+    case "history": return <HistoryView key={tab.id} active={active} />;
+    case "index-stats": return <IndexStatsView key={tab.id} active={active} />;
   }
 }
 
@@ -91,6 +95,10 @@ export default function App() {
       if (mod && e.key === "Enter") {
         e.preventDefault();
         runActiveQuery();
+      }
+      if (mod && key === "s") {
+        e.preventDefault();
+        saveActiveQuery();
       }
       if (mod && key === "b") {
         e.preventDefault();

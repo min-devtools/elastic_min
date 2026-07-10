@@ -258,9 +258,14 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
                     return (
                       <td
                         key={c}
+                        title="Click: inspect · double-click: copy value"
                         onClick={(e) => {
                           e.stopPropagation();
                           selectDoc(h, c);
+                        }}
+                        onDoubleClick={() => {
+                          void writeText(formatValue(value));
+                          showToast("Copied", `${c} value copied.`);
                         }}
                       >
                         <span className={`path-value ${valueClass(c, value)}`}>{formatValue(value)}</span>

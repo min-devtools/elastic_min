@@ -3,8 +3,10 @@ import { themeBase } from "./lib/themes";
 import type {
   Connection,
   EsHit,
+  HistoryEntry,
   QueryResult,
   QueryTabState,
+  SavedQuery,
   TabDef,
   TabKind,
 } from "./lib/types";
@@ -20,7 +22,20 @@ const TAB_META: Record<TabKind, { title: string; icon: string; iconClass: string
   cluster: { title: "Cluster", icon: "◌", iconClass: "soft-green" },
   mapping: { title: "Mapping", icon: "⌬", iconClass: "soft-blue" },
   settings: { title: "Settings", icon: "⚙", iconClass: "soft-orange" },
+  history: { title: "Query History", icon: "↺", iconClass: "soft-orange" },
+  "index-stats": { title: "Index Stats", icon: "∿", iconClass: "soft-green" },
 };
+
+const HISTORY_CAP = 200;
+
+function loadHistory(): HistoryEntry[] {
+  try {
+    const h = JSON.parse(localStorage.getItem("elasticmin:history") ?? "[]");
+    return Array.isArray(h) ? h.slice(0, HISTORY_CAP) : [];
+  } catch {
+    return [];
+  }
+}
 
 const DEFAULT_QUERY_BODY = `{
   "size": 50,
@@ -79,6 +94,8 @@ export interface ToastMsg {
 interface AppState {
   connections: Connection[];
   activeConnId: string | null;
+  savedQueries: SavedQuery[];
+  history: HistoryEntry[];
 
   tabs: TabDef[];
   activeTabId: string;
@@ -110,6 +127,12 @@ interface AppState {
 
   // actions
   setConnections: (conns: Connection[]) => void;
+  setSavedQueries: (qs: SavedQuery[]) => void;
+  saveQuery: (q: Omit<SavedQuery, "id" | "createdAt">) => void;
+  deleteSavedQuery: (id: string) => void;
+  renameSavedQuery: (id: string, name: string) => void;
+  pushHistory: (e: HistoryEntry) => void;
+  clearHistory: () => void;
   saveConnection: (conn: Connection) => void;
   deleteConnection: (id: string) => void;
   setActiveConn: (id: string | null) => void;
@@ -154,6 +177,8 @@ export const inspectorAvailable = (s: Pick<AppState, "tabs" | "activeTabId">) =>
 export const useApp = create<AppState>((set, get) => ({
   connections: [],
   activeConnId: null,
+  savedQueries: [],
+  history: loadHistory(),
 
   tabs: session?.tabs ?? [{ id: "welcome", kind: "welcome", ...TAB_META.welcome }],
   activeTabId: session?.activeTabId ?? "welcome",
@@ -189,6 +214,34 @@ export const useApp = create<AppState>((set, get) => ({
   toast: null,
 
   setConnections: (conns) => set({ connections: conns }),
+  setSavedQueries: (qs) => set({ savedQueries: qs }),
+  saveQuery: (q) =>
+    set((s) => {
+      // same name overwrites (update-in-place keeps ordering)
+      const existing = s.savedQueries.find((x) => x.name === q.name);
+      const savedQueries = existing
+        ? s.savedQueries.map((x) => (x.id === existing.id ? { ...existing, ...q } : x))
+        : [...s.savedQueries, { ...q, id: crypto.randomUUID(), createdAt: Date.now() }];
+      return { savedQueries };
+    }),
+  deleteSavedQuery: (id) =>
+    set((s) => ({ savedQueries: s.savedQueries.filter((q) => q.id !== id) })),
+  renameSavedQuery: (id, name) =>
+    set((s) => ({
+      savedQueries: s.savedQueries.map((q) =>
+        q.id === id ? { ...q, name: name.trim() || q.name } : q,
+      ),
+    })),
+  pushHistory: (e) =>
+    set((s) => {
+      const history = [e, ...s.history].slice(0, HISTORY_CAP);
+      localStorage.setItem("elasticmin:history", JSON.stringify(history));
+      return { history };
+    }),
+  clearHistory: () => {
+    localStorage.removeItem("elasticmin:history");
+    set({ history: [] });
+  },
   saveConnection: (conn) =>
     set((s) => {
       const existing = s.connections.findIndex((c) => c.id === conn.id);

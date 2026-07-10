@@ -6,10 +6,11 @@ import { Badge } from "../../ui/Badge";
 import { StatusDot } from "../../ui/StatusDot";
 import { Icon } from "../../ui/Icon";
 import { useApp } from "../../store";
-import { useActiveConnection } from "../../lib/queries";
+import { useActiveConnection, useMappingFields } from "../../lib/queries";
+import { setCompletionFields } from "../../lib/monaco";
 import { startResize } from "../ResizeHandles";
 import { ResultsPanel } from "./ResultsPanel";
-import { runQueryTab } from "../../lib/runQuery";
+import { runQueryTab, saveActiveQuery } from "../../lib/runQuery";
 import { themeBase } from "../../lib/themes";
 
 const METHODS = ["GET", "POST", "PUT", "DELETE", "HEAD"];
@@ -29,6 +30,14 @@ export function QueryView({ tabId, active }: { tabId: string; active: boolean })
   const updateQueryTab = useApp((s) => s.updateQueryTab);
   const [cursor, setCursor] = useState({ line: 1, col: 1 });
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
+  const activeIndex = useApp((s) => s.activeIndex);
+  const mappingIndex = indexFromPath(qt?.path ?? "") || activeIndex;
+  const mapping = useMappingFields(active ? mappingIndex : null);
+
+  // feed the autocomplete provider with this tab's mapping fields while it's focused
+  useEffect(() => {
+    if (active) setCompletionFields((mapping.data ?? []).map((f) => f.path));
+  }, [active, mapping.data]);
   const vimRef = useRef<{ dispose(): void } | null>(null);
   const vimStatusRef = useRef<HTMLSpanElement>(null);
 
@@ -99,6 +108,9 @@ export function QueryView({ tabId, active }: { tabId: string; active: boolean })
           </div>
           <div className="seg">
             <Badge>{jsonValid ? "JSON valid" : "JSON invalid"}</Badge>
+            <ToolButton title="Save query (⌘S)" onClick={saveActiveQuery}>
+              <Icon name="save" />
+            </ToolButton>
             <ToolButton
               title="Format JSON body"
               onClick={() => {
