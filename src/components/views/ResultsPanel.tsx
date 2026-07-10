@@ -1,0 +1,315 @@
+import { useMemo, useState } from "react";
+import { writeText } from "@tauri-apps/plugin-clipboard-manager";
+import { ToolButton } from "../../ui/ToolButton";
+import { Badge } from "../../ui/Badge";
+import { JsonView } from "../../ui/JsonView";
+import { Icon } from "../../ui/Icon";
+import { useApp } from "../../store";
+import { useActiveConnection } from "../../lib/queries";
+import { esJson } from "../../lib/es";
+import { formatValue, getPath, valueClass } from "../../lib/format";
+import { runQueryTab } from "../../lib/runQuery";
+import type { EsHit } from "../../lib/types";
+
+/** Derive default preview paths from the first hit (leaf keys, depth <= 2). */
+function derivePaths(hit: EsHit | undefined): string[] {
+  if (!hit) return [];
+  const out: string[] = [];
+  const walk = (obj: Record<string, unknown>, prefix: string, depth: number) => {
+    for (const [k, v] of Object.entries(obj)) {
+      const path = prefix ? `${prefix}.${k}` : k;
+      if (v !== null && typeof v === "object" && !Array.isArray(v) && depth < 2) {
+        walk(v as Record<string, unknown>, path, depth + 1);
+      } else {
+        out.push(path);
+      }
+      if (out.length >= 6) return;
+    }
+  };
+  walk(hit._source, "", 0);
+  return out.slice(0, 6);
+}
+
+export function ResultsPanel({ tabId }: { tabId: string }) {
+  const conn = useActiveConnection();
+  const qt = useApp((s) => s.queryTabs[tabId]);
+  const { selectDoc, selectedDoc, showToast } = useApp();
+  const [paths, setPaths] = useState<string[]>([]);
+  const [pathInput, setPathInput] = useState("");
+  // raw top-level columns by default; normalized JSON-path view is opt-in
+  const [normalized, setNormalized] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [sort, setSort] = useState<{ col: string; dir: "desc" | "asc" } | null>(null);
+
+  const result = qt?.result ?? null;
+  const hits = result?.hits ?? null;
+
+  const effectivePaths = useMemo(
+    () => (paths.length ? paths : derivePaths(hits?.[0])),
+    [paths, hits],
+  );
+  const rawColumns = useMemo(() => {
+    const cols = new Set<string>();
+    for (const h of (hits ?? []).slice(0, 30)) {
+      Object.keys(h._source).forEach((k) => cols.add(k));
+    }
+    return [...cols]; // all columns — the grid scrolls horizontally
+  }, [hits]);
+
+  // client-side sort over the loaded hits
+  const sortedHits = useMemo(() => {
+    if (!hits || !sort) return hits;
+    const dir = sort.dir === "asc" ? 1 : -1;
+    return [...hits].sort((a, b) => {
+      const va = sort.col === "_id" ? a._id : getPath(a._source, sort.col);
+      const vb = sort.col === "_id" ? b._id : getPath(b._source, sort.col);
+      if (va == null && vb == null) return 0;
+      if (va == null) return 1;
+      if (vb == null) return -1;
+      if (typeof va === "number" && typeof vb === "number") return (va - vb) * dir;
+      return String(va).localeCompare(String(vb)) * dir;
+    });
+  }, [hits, sort]);
+
+  const total = sortedHits?.length ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const paged = (sortedHits ?? []).slice((safePage - 1) * pageSize, safePage * pageSize);
+
+  const cycleSort = (col: string) => {
+    setPage(1);
+    setSort((s) => {
+      if (s?.col !== col) return { col, dir: "desc" };
+      if (s.dir === "desc") return { col, dir: "asc" };
+      return null;
+    });
+  };
+  const allPageSelected = paged.length > 0 && paged.every((h) => selected.has(h._id));
+
+  const columns = normalized ? effectivePaths : rawColumns;
+
+  const addPath = () => {
+    const p = pathInput.trim();
+    if (!p) return;
+    setPaths((prev) => (prev.includes(p) ? prev : [...(prev.length ? prev : effectivePaths), p]));
+    setNormalized(true);
+    setPathInput("");
+  };
+
+  const removePath = (p: string) => {
+    setPaths((prev) => (prev.length ? prev : effectivePaths).filter((x) => x !== p));
+  };
+
+  const toggleRow = (id: string, checked: boolean) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
+  const bulkDelete = async () => {
+    if (!conn || !hits || selected.size === 0) return;
+    if (!window.confirm(`Delete ${selected.size} document(s) from the cluster? This cannot be undone.`)) return;
+    const targets = hits.filter((h) => selected.has(h._id));
+    const ndjson =
+      targets.map((h) => JSON.stringify({ delete: { _index: h._index, _id: h._id } })).join("\n") + "\n";
+    try {
+      await esJson(conn, "POST", "/_bulk?refresh=true", ndjson);
+      showToast("Documents deleted", `${targets.length} document(s) removed.`);
+      setSelected(new Set());
+      void runQueryTab(tabId);
+    } catch (err) {
+      showToast("Bulk delete failed", String(err), "err");
+    }
+  };
+
+  const copyNdjson = async () => {
+    if (!hits?.length) return;
+    await writeText(hits.map((h) => JSON.stringify(h._source)).join("\n"));
+    showToast("Copied NDJSON", `${hits.length} documents copied to clipboard.`);
+  };
+
+  const meta = result
+    ? result.error
+      ? `error · ${result.error.slice(0, 80)}`
+      : hits
+        ? `${result.total ?? hits.length} hits · ${normalized ? "normalized preview" : "raw columns"} · ${result.timeMs}ms`
+        : `HTTP ${result.status} · ${result.timeMs}ms`
+    : "run the query to load results";
+
+  return (
+    <div className="results">
+      <div className="result-head">
+        <div className="result-headline">
+          <div className="seg">
+            <strong>Search Results</strong>
+            <span className="result-meta">{meta}</span>
+          </div>
+          <div className="seg">
+            {selected.size > 0 && (
+              <ToolButton
+                variant="danger"
+                title="Delete selected documents from the cluster (_bulk)"
+                onClick={() => void bulkDelete()}
+              >
+                <Icon name="trash" /> Delete {selected.size}
+              </ToolButton>
+            )}
+            <ToolButton
+              title={normalized ? "Switch to raw top-level columns" : "Switch to JSON-path columns"}
+              onClick={() => setNormalized((n) => !n)}
+            >
+              <Icon name="table" /> {normalized ? "Normalized on" : "Raw columns"}
+            </ToolButton>
+            <ToolButton
+              title="Copy all hits as NDJSON to clipboard"
+              disabled={!hits?.length}
+              onClick={() => void copyNdjson()}
+            >
+              <Icon name="copy" /> NDJSON
+            </ToolButton>
+          </div>
+        </div>
+        <div className="path-preview">
+          <input
+            className="path-input"
+            value={pathInput}
+            placeholder="Add JSON path, e.g. payment.provider or fulfillment.state"
+            onChange={(e) => setPathInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") addPath();
+            }}
+          />
+          <ToolButton onClick={addPath}><Icon name="plus" /> Add path</ToolButton>
+        </div>
+      </div>
+      <div className="result-grid">
+        {result?.error && <div className="err-note">{result.error}</div>}
+        {!result?.error && hits && (
+          <table>
+            <thead>
+              <tr>
+                <th>
+                  <input
+                    type="checkbox"
+                    className="row-check"
+                    checked={allPageSelected}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setSelected((prev) => {
+                        const next = new Set(prev);
+                        paged.forEach((h) => (checked ? next.add(h._id) : next.delete(h._id)));
+                        return next;
+                      });
+                    }}
+                  />
+                </th>
+                <th onClick={() => cycleSort("_id")} style={{ cursor: "pointer" }} title="Click to sort loaded hits: desc → asc → off">
+                  _id
+                  {sort?.col === "_id" && <span className="sort-arrow">{sort.dir === "desc" ? " ▼" : " ▲"}</span>}
+                </th>
+                {columns.map((c) => (
+                  <th
+                    key={c}
+                    onClick={() => cycleSort(c)}
+                    style={{ cursor: "pointer" }}
+                    title="Click to sort loaded hits: desc → asc → off"
+                  >
+                    {c}
+                    {sort?.col === c && <span className="sort-arrow">{sort.dir === "desc" ? " ▼" : " ▲"}</span>}
+                    {normalized && (
+                      <span
+                        className="th-remove"
+                        title="Remove column"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removePath(c);
+                        }}
+                      >
+                        ×
+                      </span>
+                    )}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {paged.map((h) => (
+                <tr
+                  key={h._id}
+                  className={selectedDoc?._id === h._id ? "selected" : ""}
+                  onClick={() => selectDoc(h)}
+                >
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      className="row-check"
+                      checked={selected.has(h._id)}
+                      onChange={(e) => toggleRow(h._id, e.target.checked)}
+                    />
+                  </td>
+                  <td><span className="cell-id">{h._id}</span></td>
+                  {columns.map((c) => {
+                    const value = getPath(h._source, c);
+                    return (
+                      <td
+                        key={c}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          selectDoc(h, c);
+                        }}
+                      >
+                        <span className={`path-value ${valueClass(c, value)}`}>{formatValue(value)}</span>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+              {paged.length === 0 && (
+                <tr>
+                  <td colSpan={columns.length + 2} style={{ color: "var(--text-3)" }}>
+                    no hits
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        )}
+        {!result?.error && !hits && result != null && <JsonView value={result.raw} />}
+        {result == null && (
+          <div className="empty-note">Press ▶ Run (⌘↵) to execute this request against the cluster.</div>
+        )}
+      </div>
+      <div className="result-foot">
+        <div className="seg">
+          <ToolButton disabled={safePage === 1} onClick={() => setPage(1)}>First</ToolButton>
+          <ToolButton disabled={safePage === 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>‹ Prev</ToolButton>
+          <Badge>{safePage} / {totalPages}</Badge>
+          <ToolButton disabled={safePage === totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next ›</ToolButton>
+          <ToolButton disabled={safePage === totalPages} onClick={() => setPage(totalPages)}>Last</ToolButton>
+        </div>
+        <div className="seg">
+          <span>
+            {total === 0 ? 0 : (safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, total)} of {total}
+          </span>
+          <select
+            className="page-size"
+            value={pageSize}
+            onChange={(e) => {
+              setPageSize(Number(e.target.value));
+              setPage(1);
+            }}
+          >
+            {[10, 25, 50, 100].map((s) => (
+              <option key={s} value={s}>{s}/page</option>
+            ))}
+          </select>
+        </div>
+      </div>
+    </div>
+  );
+}
