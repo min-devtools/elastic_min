@@ -11,7 +11,6 @@ import { setCompletionFields } from "../../lib/monaco";
 import { startResize } from "../ResizeHandles";
 import { ResultsPanel } from "./ResultsPanel";
 import { runQueryTab, saveActiveQuery } from "../../lib/runQuery";
-import { themeBase } from "../../lib/themes";
 
 const METHODS = ["GET", "POST", "PUT", "DELETE", "HEAD"];
 
@@ -22,7 +21,6 @@ function indexFromPath(path: string): string {
 
 export function QueryView({ tabId, active }: { tabId: string; active: boolean }) {
   const conn = useActiveConnection();
-  const theme = useApp((s) => s.theme);
   const vimMode = useApp((s) => s.vimMode);
   const editorFontSize = useApp((s) => s.editorFontSize);
   const editorFont = useApp((s) => s.editorFont);
@@ -122,7 +120,7 @@ export function QueryView({ tabId, active }: { tabId: string; active: boolean })
         <div className="editor-host">
           <Editor
             language="json"
-            theme={themeBase(theme) === "dark" ? "elasticmin-dark" : "elasticmin-light"}
+            theme="elasticmin-live"
             value={qt.body}
             onChange={(v) => updateQueryTab(tabId, { body: v ?? "" })}
             onMount={onMount}
