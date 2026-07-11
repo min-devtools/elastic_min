@@ -70,14 +70,14 @@
   background: color-mix(in oklab, var(--pane), transparent 6%);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 8px 20px color-mix(in oklab, var(--surface-app), transparent 70%);
 }
 
 .tool-btn.primary {
-  color: #fff;
-  background: linear-gradient(135deg, var(--blue-2), color-mix(in oklab, var(--blue), #6f5bff 28%));
-  border-color: rgba(90, 167, 255, 0.34);
-  box-shadow: 0 0 0 1px rgba(90, 167, 255, 0.12), 0 10px 22px rgba(31, 111, 235, 0.16);
+  color: var(--text-on-accent);
+  background: var(--accent-secondary);
+  border-color: color-mix(in oklab, var(--accent-primary), transparent 52%);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--accent-primary), transparent 84%), 0 10px 22px color-mix(in oklab, var(--accent-secondary), transparent 78%);
 }
 
 .tool-btn.danger { color: var(--red); }
@@ -506,7 +506,7 @@ tbody tr:hover td, tbody tr.selected td { background: color-mix(in oklab, var(--
   display: grid;
   place-items: start center;
   padding-top: 92px;
-  background: rgba(0, 0, 0, 0.34);
+  background: var(--modal-backdrop);
   z-index: 20;
 }
 
@@ -578,7 +578,7 @@ tbody tr:hover td, tbody tr.selected td { background: color-mix(in oklab, var(--
   inset: 0;
   display: grid;
   place-items: center;
-  background: rgba(0, 0, 0, 0.44);
+  background: var(--modal-backdrop);
   z-index: 24;
 }
 

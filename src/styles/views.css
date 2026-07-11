@@ -54,7 +54,7 @@ body.light .editor-pane { background: var(--editor-bg); }
   gap: 10px;
   padding: 0 12px;
   border-top: 1px solid var(--line);
-  background: color-mix(in oklab, var(--window), black 3%);
+  background: color-mix(in oklab, var(--window), var(--app-bg) 3%);
   color: var(--text-2);
   font: 12px/1 var(--font-mono);
 }
@@ -66,7 +66,7 @@ body.light .editor-pane { background: var(--editor-bg); }
   z-index: 12;
   min-height: 7px;
   cursor: row-resize;
-  background: color-mix(in oklab, var(--window), black 3%);
+  background: color-mix(in oklab, var(--window), var(--app-bg) 3%);
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
   touch-action: none;
@@ -139,7 +139,7 @@ body.light .editor-pane { background: var(--editor-bg); }
   gap: 12px;
   padding: 0 14px;
   border-bottom: 1px solid var(--line);
-  background: color-mix(in oklab, var(--window), black 3%);
+  background: color-mix(in oklab, var(--window), var(--app-bg) 3%);
 }
 
 .quick-builder-body {
@@ -313,7 +313,7 @@ body.light .json-pane, body.light .doc-context-panel { background: var(--editor-
 
 .docs-left .mini-tabs {
   border-bottom: 1px solid var(--line);
-  background: color-mix(in oklab, var(--window), black 3%);
+  background: color-mix(in oklab, var(--window), var(--app-bg) 3%);
 }
 
 .docs-left-body { min-height: 0; position: relative; }
@@ -462,7 +462,7 @@ body.light .docs-preview-editor { color: var(--editor-fg); }
   padding: 14px;
   border: 1px solid var(--line);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.025);
+  background: color-mix(in oklab, var(--pane), var(--text) 3%);
   font: 12px/1.5 var(--font-mono);
   color: var(--text-2);
 }
@@ -505,7 +505,7 @@ body.light .docs-preview-editor { color: var(--editor-fg); }
   gap: 14px;
   padding: 10px 14px;
   border-bottom: 1px solid var(--line);
-  background: color-mix(in oklab, var(--window), black 3%);
+  background: color-mix(in oklab, var(--window), var(--app-bg) 3%);
 }
 
 .create-layout {
@@ -607,7 +607,7 @@ body.light .docs-preview-editor { color: var(--editor-fg); }
   gap: 10px;
   padding: 8px 12px;
   border-bottom: 1px solid var(--line);
-  background: color-mix(in oklab, var(--window), black 3%);
+  background: color-mix(in oklab, var(--window), var(--app-bg) 3%);
 }
 
 .index-search {
@@ -779,8 +779,8 @@ body.light .docs-preview-editor { color: var(--editor-fg); }
 }
 
 .logic-toggle button.active {
-  color: #fff;
-  background: linear-gradient(135deg, var(--blue-2), color-mix(in oklab, var(--blue), #6f5bff 28%));
+  color: var(--text-on-accent);
+  background: var(--accent-secondary);
 }
 
 .condition-card {

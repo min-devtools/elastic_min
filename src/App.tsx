@@ -23,6 +23,7 @@ import { inspectorAvailable, useApp } from "./store";
 import { runActiveQuery, saveActiveQuery } from "./lib/runQuery";
 import { themeBase } from "./lib/themes";
 import { retintMonaco } from "./lib/monaco";
+import { applyPalette, readBuiltinPalette } from "./lib/themeContract";
 import type { TabDef } from "./lib/types";
 
 function renderView(tab: TabDef, active: boolean) {
@@ -72,14 +73,23 @@ export default function App() {
     requestAnimationFrame(() => {
       const cs = getComputedStyle(document.body);
       const v = (name: string) => cs.getPropertyValue(name).trim();
+      const palette = readBuiltinPalette(cs);
+      applyPalette(document.body.style, palette);
       retintMonaco(base, {
-        blue: v("--blue"),
-        blue2: v("--blue-2"),
-        green: v("--green"),
-        purple: v("--purple"),
-        text3: v("--text-3"),
-        editorBg: v("--editor-bg"),
-        editorFg: v("--editor-fg"),
+        accentPrimary: v("--accent-primary"),
+        accentFocus: v("--accent-focus"),
+        syntaxKey: v("--syntax-key"),
+        syntaxString: v("--syntax-string"),
+        syntaxNumber: v("--syntax-number"),
+        syntaxBoolean: v("--syntax-boolean"),
+        syntaxNull: v("--syntax-null"),
+        textPrimary: v("--text-primary"),
+        textMuted: v("--text-muted"),
+        surfaceEditor: v("--surface-editor"),
+        surfaceRaised: v("--surface-raised"),
+        borderDefault: v("--border-default"),
+        statusDanger: v("--status-danger"),
+        statusWarning: v("--status-warning"),
       });
     });
     cls.toggle("compact", compact);
