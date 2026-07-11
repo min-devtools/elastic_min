@@ -4,6 +4,8 @@ import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import jsonWorker from "monaco-editor/esm/vs/language/json/json.worker?worker";
 import { loader } from "@monaco-editor/react";
 
+export const MONACO_THEME = "elasticmin-live";
+
 self.MonacoEnvironment = {
   getWorker(_workerId: string, label: string) {
     if (label === "json") return new jsonWorker();
@@ -18,7 +20,7 @@ const withHash = (v: string | undefined, fallback: string) =>
   v?.trim().startsWith("#") ? v.trim() : `#${fallback}`;
 
 function defineThemes(base: "dark" | "light", p: Record<string, string>) {
-  monaco.editor.defineTheme("elasticmin-live", {
+  monaco.editor.defineTheme(MONACO_THEME, {
     base: base === "dark" ? "vs-dark" : "vs",
     inherit: true,
     rules: [
@@ -49,7 +51,7 @@ defineThemes("dark", {});
 /** Re-tint Monaco to the active app theme's actual palette (not just dark/light). */
 export function retintMonaco(base: "dark" | "light", palette: Record<string, string>) {
   defineThemes(base, palette);
-  monaco.editor.setTheme("elasticmin-live");
+  monaco.editor.setTheme(MONACO_THEME);
 }
 
 // --- field-path autocomplete (fed by the active query tab's index mapping) ---

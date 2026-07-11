@@ -7,7 +7,7 @@ import { StatusDot } from "../../ui/StatusDot";
 import { Icon } from "../../ui/Icon";
 import { useApp } from "../../store";
 import { useActiveConnection, useMappingFields } from "../../lib/queries";
-import { setCompletionFields } from "../../lib/monaco";
+import { MONACO_THEME, setCompletionFields } from "../../lib/monaco";
 import { startResize } from "../ResizeHandles";
 import { ResultsPanel } from "./ResultsPanel";
 import { runQueryTab, saveActiveQuery } from "../../lib/runQuery";
@@ -120,7 +120,7 @@ export function QueryView({ tabId, active }: { tabId: string; active: boolean })
         <div className="editor-host">
           <Editor
             language="json"
-            theme="elasticmin-live"
+            theme={MONACO_THEME}
             value={qt.body}
             onChange={(v) => updateQueryTab(tabId, { body: v ?? "" })}
             onMount={onMount}

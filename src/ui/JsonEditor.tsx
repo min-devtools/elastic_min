@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Editor, { type OnMount } from "@monaco-editor/react";
 import { initVimMode } from "monaco-vim";
-import { monaco } from "../lib/monaco";
+import { MONACO_THEME, monaco } from "../lib/monaco";
 import { useApp } from "../store";
 
 interface Props {
@@ -80,7 +80,7 @@ export function JsonEditor({ value, onChange, vimStatusRef, fontSize, lineNumber
   return (
     <Editor
       language="json"
-      theme="elasticmin-live"
+      theme={MONACO_THEME}
       value={value}
       onChange={(v) => onChange(v ?? "")}
       onMount={onMount}
