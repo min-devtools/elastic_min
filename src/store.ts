@@ -182,6 +182,7 @@ interface AppState {
   setQueryResult: (id: string, result: QueryResult | null) => void;
 
   setActiveIndex: (index: string | null) => void;
+  bumpIndexRecency: (index: string) => void;
   selectDoc: (doc: EsHit | null, focusField?: string | null) => void;
   setEditingConn: (id: string | null) => void;
   setTheme: (id: string) => void;
@@ -354,6 +355,7 @@ export const useApp = create<AppState>((set, get) => ({
     const s = get();
     const conn = activeConnection(s);
     const idx = index ?? s.activeIndex ?? conn?.defaultIndex ?? "";
+    if (idx) get().bumpIndexRecency(idx);
     const existingId = s.tabs.find((t) => t.kind === "docs" && s.docsTabs[t.id]?.index === idx)?.id;
     if (existingId) {
       set({ activeTabId: existingId });
@@ -442,11 +444,9 @@ export const useApp = create<AppState>((set, get) => ({
         : s,
     ),
 
-  setActiveIndex: (index) =>
-    set((s) => ({
-      activeIndex: index,
-      indexRecency: index ? [index, ...s.indexRecency.filter((i) => i !== index)] : s.indexRecency,
-    })),
+  setActiveIndex: (index) => set({ activeIndex: index }),
+  bumpIndexRecency: (index) =>
+    set((s) => ({ indexRecency: [index, ...s.indexRecency.filter((i) => i !== index)] })),
   // auto show/hide the right-dock inspector with what's selected — nothing selected, nothing to show
   selectDoc: (doc, focusField = null) => set({ selectedDoc: doc, focusField, rightCollapsed: doc === null }),
   setEditingConn: (id) => set({ editingConnId: id }),

@@ -34,6 +34,11 @@ export async function runQueryTab(tabId: string): Promise<void> {
           : undefined,
     };
     useApp.getState().setQueryResult(tabId, result);
+    // recency: bump the queried index only on a successful run, not on sidebar click
+    if (!result.error) {
+      const seg = qt.path.split("?")[0].split("/").filter(Boolean)[0];
+      if (seg && !seg.startsWith("_")) useApp.getState().bumpIndexRecency(seg);
+    }
     useApp.getState().pushHistory({
       at: Date.now(),
       method: qt.method,

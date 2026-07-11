@@ -396,9 +396,10 @@ body.light .docs-preview-editor { color: var(--editor-fg); }
   min-height: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  grid-auto-rows: min-content;
   gap: 14px;
   padding: 22px;
-  align-items: start;
+  align-content: start;
 }
 
 .welcome-hero, .welcome-panel, .create-card {
