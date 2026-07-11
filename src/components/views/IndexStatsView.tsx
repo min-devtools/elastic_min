@@ -3,10 +3,12 @@ import { Metric, Panel } from "../../ui/MetricPanel";
 import { Kv } from "../../ui/Kv";
 import { Badge } from "../../ui/Badge";
 import { HealthPill } from "../../ui/Pills";
+import { SortTh } from "../../ui/SortTh";
 import { useApp } from "../../store";
 import { useActiveConnection, useIndices } from "../../lib/queries";
 import { esJson } from "../../lib/es";
 import { formatBytes, formatDocCount } from "../../lib/format";
+import { sortRows, useSort } from "../../lib/useSort";
 
 interface ShardRow {
   shard: string;
@@ -23,6 +25,7 @@ export function IndexStatsView({ active }: { active: boolean }) {
   const { activeIndex } = useApp();
   const index = activeIndex ?? conn?.defaultIndex ?? "";
   const info = indices.data?.find((i) => i.index === index);
+  const { sort: shardSort, cycleSort: cycleShardSort } = useSort();
 
   const stats = useQuery({
     queryKey: ["index-stats", conn?.id, index],
@@ -86,10 +89,27 @@ export function IndexStatsView({ active }: { active: boolean }) {
         <Panel title={`Shards (${stats.data?.shards.length ?? 0})`}>
           <table>
             <thead>
-              <tr><th>Shard</th><th>Role</th><th>State</th><th>Docs</th><th>Store</th><th>Node</th></tr>
+              <tr>
+                <SortTh col="shard" sort={shardSort} onSort={cycleShardSort}>Shard</SortTh>
+                <SortTh col="role" sort={shardSort} onSort={cycleShardSort}>Role</SortTh>
+                <SortTh col="state" sort={shardSort} onSort={cycleShardSort}>State</SortTh>
+                <SortTh col="docs" sort={shardSort} onSort={cycleShardSort}>Docs</SortTh>
+                <SortTh col="store" sort={shardSort} onSort={cycleShardSort}>Store</SortTh>
+                <SortTh col="node" sort={shardSort} onSort={cycleShardSort}>Node</SortTh>
+              </tr>
             </thead>
             <tbody>
-              {(stats.data?.shards ?? []).map((s, i) => (
+              {sortRows(stats.data?.shards ?? [], shardSort, (s, col) => {
+                switch (col) {
+                  case "shard": return Number(s.shard);
+                  case "role": return s.prirep;
+                  case "state": return s.state;
+                  case "docs": return s.docs != null && s.docs !== "" ? Number(s.docs) : null;
+                  case "store": return s.store;
+                  case "node": return s.node;
+                  default: return null;
+                }
+              }).map((s, i) => (
                 <tr key={i}>
                   <td>{s.shard}</td>
                   <td><span className="type-pill">{s.prirep === "p" ? "primary" : "replica"}</span></td>

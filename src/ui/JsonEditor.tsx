@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import Editor, { type OnMount } from "@monaco-editor/react";
 import { initVimMode } from "monaco-vim";
 import { monaco } from "../lib/monaco";
-import { themeBase } from "../lib/themes";
 import { useApp } from "../store";
 
 interface Props {
@@ -18,7 +17,6 @@ interface Props {
 
 /** Compact Monaco JSON editor — theme/font/vim follow app settings. */
 export function JsonEditor({ value, onChange, vimStatusRef, fontSize, lineNumbers = false, highlightPath }: Props) {
-  const theme = useApp((s) => s.theme);
   const vimMode = useApp((s) => s.vimMode);
   const editorFont = useApp((s) => s.editorFont);
   const editorFontSize = useApp((s) => s.editorFontSize);
@@ -82,7 +80,7 @@ export function JsonEditor({ value, onChange, vimStatusRef, fontSize, lineNumber
   return (
     <Editor
       language="json"
-      theme={themeBase(theme) === "dark" ? "elasticmin-dark" : "elasticmin-light"}
+      theme="elasticmin-live"
       value={value}
       onChange={(v) => onChange(v ?? "")}
       onMount={onMount}

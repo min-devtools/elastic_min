@@ -1,8 +1,11 @@
 import { ToolButton } from "../../ui/ToolButton";
 import { Badge } from "../../ui/Badge";
 import { Icon } from "../../ui/Icon";
+import { SortTh } from "../../ui/SortTh";
 import { useApp } from "../../store";
 import { runQueryTab } from "../../lib/runQuery";
+import { sortRows, useSort } from "../../lib/useSort";
+import type { HistoryEntry } from "../../lib/types";
 
 function timeOf(at: number): string {
   const d = new Date(at);
@@ -14,9 +17,21 @@ function timeOf(at: number): string {
 
 export function HistoryView({ active }: { active: boolean }) {
   const { history, clearHistory, newQueryTab, showToast } = useApp();
+  const { sort, cycleSort } = useSort();
 
-  const reopen = (i: number, run: boolean) => {
-    const e = history[i];
+  const sorted = sortRows(history, sort, (e, col) => {
+    switch (col) {
+      case "time": return e.at;
+      case "method": return e.method;
+      case "path": return e.path;
+      case "status": return e.status;
+      case "took": return e.timeMs;
+      case "hits": return e.hits;
+      default: return null;
+    }
+  });
+
+  const reopen = (e: HistoryEntry, run: boolean) => {
     const id = newQueryTab({ method: e.method, path: e.path, body: e.body });
     if (run) void runQueryTab(id);
   };
@@ -47,12 +62,18 @@ export function HistoryView({ active }: { active: boolean }) {
         <table>
           <thead>
             <tr>
-              <th>Time</th><th>Method</th><th>Path</th><th>Status</th><th>Took</th><th>Hits</th><th></th>
+              <SortTh col="time" sort={sort} onSort={cycleSort}>Time</SortTh>
+              <SortTh col="method" sort={sort} onSort={cycleSort}>Method</SortTh>
+              <SortTh col="path" sort={sort} onSort={cycleSort}>Path</SortTh>
+              <SortTh col="status" sort={sort} onSort={cycleSort}>Status</SortTh>
+              <SortTh col="took" sort={sort} onSort={cycleSort}>Took</SortTh>
+              <SortTh col="hits" sort={sort} onSort={cycleSort}>Hits</SortTh>
+              <th></th>
             </tr>
           </thead>
           <tbody>
-            {history.map((e, i) => (
-              <tr key={e.at + e.path} onClick={() => reopen(i, false)}>
+            {sorted.map((e) => (
+              <tr key={e.at + e.path} onClick={() => reopen(e, false)}>
                 <td><span className="cell-date">{timeOf(e.at)}</span></td>
                 <td><span className="type-pill">{e.method}</span></td>
                 <td><span className="cell-id">{e.path}</span></td>
@@ -64,7 +85,7 @@ export function HistoryView({ active }: { active: boolean }) {
                 <td><span className="cell-date">{e.timeMs}ms</span></td>
                 <td>{e.hits ?? "—"}</td>
                 <td onClick={(ev) => ev.stopPropagation()}>
-                  <ToolButton title="Re-run now" onClick={() => reopen(i, true)}>
+                  <ToolButton title="Re-run now" onClick={() => reopen(e, true)}>
                     <Icon name="play" />
                   </ToolButton>
                 </td>

@@ -4,31 +4,13 @@ import { ToolButton } from "../../ui/ToolButton";
 import { Badge } from "../../ui/Badge";
 import { JsonView } from "../../ui/JsonView";
 import { Icon } from "../../ui/Icon";
+import { SortTh } from "../../ui/SortTh";
 import { useApp } from "../../store";
 import { useActiveConnection } from "../../lib/queries";
 import { esJson } from "../../lib/es";
 import { formatValue, getPath, valueClass } from "../../lib/format";
 import { runQueryTab } from "../../lib/runQuery";
-import type { EsHit } from "../../lib/types";
-
-/** Derive default preview paths from the first hit (leaf keys, depth <= 2). */
-function derivePaths(hit: EsHit | undefined): string[] {
-  if (!hit) return [];
-  const out: string[] = [];
-  const walk = (obj: Record<string, unknown>, prefix: string, depth: number) => {
-    for (const [k, v] of Object.entries(obj)) {
-      const path = prefix ? `${prefix}.${k}` : k;
-      if (v !== null && typeof v === "object" && !Array.isArray(v) && depth < 2) {
-        walk(v as Record<string, unknown>, path, depth + 1);
-      } else {
-        out.push(path);
-      }
-      if (out.length >= 6) return;
-    }
-  };
-  walk(hit._source, "", 0);
-  return out.slice(0, 6);
-}
+import { sortRows, useSort } from "../../lib/useSort";
 
 export function ResultsPanel({ tabId }: { tabId: string }) {
   const conn = useActiveConnection();
@@ -41,15 +23,11 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [sort, setSort] = useState<{ col: string; dir: "desc" | "asc" } | null>(null);
+  const { sort, cycleSort: rawCycleSort } = useSort();
 
   const result = qt?.result ?? null;
   const hits = result?.hits ?? null;
 
-  const effectivePaths = useMemo(
-    () => (paths.length ? paths : derivePaths(hits?.[0])),
-    [paths, hits],
-  );
   const rawColumns = useMemo(() => {
     const cols = new Set<string>();
     for (const h of (hits ?? []).slice(0, 30)) {
@@ -59,19 +37,10 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
   }, [hits]);
 
   // client-side sort over the loaded hits
-  const sortedHits = useMemo(() => {
-    if (!hits || !sort) return hits;
-    const dir = sort.dir === "asc" ? 1 : -1;
-    return [...hits].sort((a, b) => {
-      const va = sort.col === "_id" ? a._id : getPath(a._source, sort.col);
-      const vb = sort.col === "_id" ? b._id : getPath(b._source, sort.col);
-      if (va == null && vb == null) return 0;
-      if (va == null) return 1;
-      if (vb == null) return -1;
-      if (typeof va === "number" && typeof vb === "number") return (va - vb) * dir;
-      return String(va).localeCompare(String(vb)) * dir;
-    });
-  }, [hits, sort]);
+  const sortedHits = useMemo(
+    () => (hits ? sortRows(hits, sort, (h, col) => (col === "_id" ? h._id : getPath(h._source, col))) : hits),
+    [hits, sort],
+  );
 
   const total = sortedHits?.length ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -80,26 +49,22 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
 
   const cycleSort = (col: string) => {
     setPage(1);
-    setSort((s) => {
-      if (s?.col !== col) return { col, dir: "desc" };
-      if (s.dir === "desc") return { col, dir: "asc" };
-      return null;
-    });
+    rawCycleSort(col);
   };
   const allPageSelected = paged.length > 0 && paged.every((h) => selected.has(h._id));
 
-  const columns = normalized ? effectivePaths : rawColumns;
+  const columns = normalized ? paths : rawColumns;
 
   const addPath = () => {
     const p = pathInput.trim();
     if (!p) return;
-    setPaths((prev) => (prev.includes(p) ? prev : [...(prev.length ? prev : effectivePaths), p]));
+    setPaths((prev) => (prev.includes(p) ? prev : [...prev, p]));
     setNormalized(true);
     setPathInput("");
   };
 
   const removePath = (p: string) => {
-    setPaths((prev) => (prev.length ? prev : effectivePaths).filter((x) => x !== p));
+    setPaths((prev) => prev.filter((x) => x !== p));
   };
 
   const toggleRow = (id: string, checked: boolean) => {
@@ -208,19 +173,18 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
                     }}
                   />
                 </th>
-                <th onClick={() => cycleSort("_id")} style={{ cursor: "pointer" }} title="Click to sort loaded hits: desc → asc → off">
+                <SortTh col="_id" sort={sort} onSort={cycleSort} title="Click to sort loaded hits: desc → asc → off">
                   _id
-                  {sort?.col === "_id" && <span className="sort-arrow">{sort.dir === "desc" ? " ▼" : " ▲"}</span>}
-                </th>
+                </SortTh>
                 {columns.map((c) => (
-                  <th
+                  <SortTh
                     key={c}
-                    onClick={() => cycleSort(c)}
-                    style={{ cursor: "pointer" }}
+                    col={c}
+                    sort={sort}
+                    onSort={cycleSort}
                     title="Click to sort loaded hits: desc → asc → off"
                   >
                     {c}
-                    {sort?.col === c && <span className="sort-arrow">{sort.dir === "desc" ? " ▼" : " ▲"}</span>}
                     {normalized && (
                       <span
                         className="th-remove"
@@ -233,7 +197,7 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
                         ×
                       </span>
                     )}
-                  </th>
+                  </SortTh>
                 ))}
               </tr>
             </thead>

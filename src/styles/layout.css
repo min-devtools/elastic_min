@@ -168,10 +168,9 @@ body.resizing-y { cursor: row-resize; }
 
 .tabs {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 7px;
   padding: 6px 8px 0;
-  border-bottom: 1px solid var(--line);
   background: color-mix(in oklab, var(--window), black 5%);
   overflow: hidden;
 }
@@ -185,7 +184,7 @@ body.resizing-y { cursor: row-resize; }
   padding: 0 8px 0 11px;
   color: var(--text-2);
   border: 1px solid var(--line);
-  border-bottom-color: transparent;
+  border-bottom-color: var(--line);
   border-radius: 10px 10px 0 0;
   background: color-mix(in oklab, var(--pane), transparent 20%);
   cursor: pointer;
@@ -201,6 +200,7 @@ body.resizing-y { cursor: row-resize; }
     linear-gradient(180deg, color-mix(in oklab, var(--blue), transparent 88%), transparent 70%),
     var(--window);
   border-color: color-mix(in oklab, var(--blue), transparent 62%);
+  border-bottom-color: transparent;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
@@ -217,6 +217,19 @@ body.resizing-y { cursor: row-resize; }
 }
 
 .tab-close:hover { color: var(--text); background: var(--pane-3); }
+
+.tab.dragging { opacity: 0.4; }
+
+.tab.drag-over::before {
+  content: "";
+  position: absolute;
+  left: -3px;
+  top: 2px;
+  bottom: 2px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--blue);
+}
 
 .tab-add {
   height: 31px;

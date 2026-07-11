@@ -7,9 +7,11 @@ import { Badge } from "../../ui/Badge";
 import { HealthPill } from "../../ui/Pills";
 import { Icon } from "../../ui/Icon";
 import { ContextMenu, type ContextMenuItem } from "../../ui/ContextMenu";
+import { SortTh } from "../../ui/SortTh";
 import { useApp } from "../../store";
 import { useActiveConnection, useIndices } from "../../lib/queries";
 import { formatDocCount } from "../../lib/format";
+import { sortRows, useSort } from "../../lib/useSort";
 
 export function IndexesView({ active }: { active: boolean }) {
   const conn = useActiveConnection();
@@ -18,11 +20,24 @@ export function IndexesView({ active }: { active: boolean }) {
   const { openTab, setActiveIndex, newQueryTab, showToast } = useApp();
   const [filter, setFilter] = useState("");
   const [menu, setMenu] = useState<{ x: number; y: number; index: string } | null>(null);
+  const { sort, cycleSort } = useSort();
 
   const q = filter.trim().toLowerCase();
   const filtered = (indices.data ?? []).filter(
     (i) => !q || `${i.index} ${i.aliases.join(" ")}`.toLowerCase().includes(q),
   );
+  const sorted = sortRows(filtered, sort, (i, col) => {
+    switch (col) {
+      case "health": return i.health;
+      case "index": return i.index;
+      case "aliases": return i.aliases.join(", ");
+      case "docs": return i.docsCount;
+      case "storage": return i.storeSize;
+      case "shards": return i.pri;
+      case "status": return i.status;
+      default: return null;
+    }
+  });
 
   const menuItems: ContextMenuItem[] = menu
     ? [
@@ -108,12 +123,17 @@ export function IndexesView({ active }: { active: boolean }) {
         <table>
           <thead>
             <tr>
-              <th>Health</th><th>Index name</th><th>Aliases</th><th>Docs</th>
-              <th>Storage</th><th>Shards</th><th>Status</th>
+              <SortTh col="health" sort={sort} onSort={cycleSort}>Health</SortTh>
+              <SortTh col="index" sort={sort} onSort={cycleSort}>Index name</SortTh>
+              <SortTh col="aliases" sort={sort} onSort={cycleSort}>Aliases</SortTh>
+              <SortTh col="docs" sort={sort} onSort={cycleSort}>Docs</SortTh>
+              <SortTh col="storage" sort={sort} onSort={cycleSort}>Storage</SortTh>
+              <SortTh col="shards" sort={sort} onSort={cycleSort}>Shards</SortTh>
+              <SortTh col="status" sort={sort} onSort={cycleSort}>Status</SortTh>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((i) => (
+            {sorted.map((i) => (
               <tr
                 key={i.index}
                 onClick={(e) => setMenu({ x: e.clientX, y: e.clientY, index: i.index })}

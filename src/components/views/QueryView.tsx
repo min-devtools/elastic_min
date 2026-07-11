@@ -81,15 +81,12 @@ export function QueryView({ tabId, active }: { tabId: string; active: boolean })
     }
   };
 
-  const index = indexFromPath(qt.path);
-
   return (
     <section className={`content query-view ${active ? "active" : ""}`}>
       <div className="editor-pane">
         <div className="editor-head">
           <div className="seg">
-            <StatusDot tone={conn ? "green" : "idle"} />
-            <strong>{index || "cluster"}</strong>
+            <StatusDot tone={conn ? "green" : "red"} />
             <select
               className="method-select"
               value={qt.method}

@@ -141,6 +141,7 @@ interface AppState {
   newQueryTab: (init?: Partial<QueryTabState>) => string;
   closeTab: (id: string) => void;
   activateTab: (id: string) => void;
+  reorderTab: (id: string, beforeId: string | null) => void;
   renameTab: (id: string, title: string) => void;
   updateQueryTab: (id: string, patch: Partial<QueryTabState>) => void;
   setQueryResult: (id: string, result: QueryResult | null) => void;
@@ -322,6 +323,17 @@ export const useApp = create<AppState>((set, get) => ({
     }),
 
   activateTab: (id) => set({ activeTabId: id }),
+
+  reorderTab: (id, beforeId) =>
+    set((s) => {
+      if (id === beforeId) return s;
+      const dragged = s.tabs.find((t) => t.id === id);
+      if (!dragged) return s;
+      const rest = s.tabs.filter((t) => t.id !== id);
+      const idx = beforeId ? rest.findIndex((t) => t.id === beforeId) : -1;
+      const tabs = idx < 0 ? [...rest, dragged] : [...rest.slice(0, idx), dragged, ...rest.slice(idx)];
+      return { tabs };
+    }),
 
   renameTab: (id, title) =>
     set((s) => ({

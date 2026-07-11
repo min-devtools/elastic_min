@@ -224,7 +224,7 @@
 
 .path-value.sku, .cell-sku { color: var(--purple); }
 
-.path-value.number, .cell-number { color: #79c0ff; }
+.path-value.number, .cell-number { color: var(--blue-2); }
 
 .path-value.keyword, .cell-keyword { color: var(--text); }
 
@@ -309,7 +309,7 @@ tbody tr:hover td, tbody tr.selected td { background: color-mix(in oklab, var(--
 
 .json-tree .syntax-string, .quick-query-code .syntax-string { color: var(--green); }
 
-.json-tree .syntax-number, .quick-query-code .syntax-number { color: #79c0ff; }
+.json-tree .syntax-number, .quick-query-code .syntax-number { color: var(--blue-2); }
 
 .json-tree .syntax-bool, .quick-query-code .syntax-bool { color: var(--purple); }
 

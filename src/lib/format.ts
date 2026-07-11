@@ -19,7 +19,9 @@ export function highlightJson(json: string): string {
 
 export function getPath(source: unknown, path: string): unknown {
   return path
+    .replace(/\[(\d+)\]/g, ".$1")
     .split(".")
+    .filter(Boolean)
     .reduce<any>((value, key) => (value == null ? undefined : value[key]), source);
 }
 

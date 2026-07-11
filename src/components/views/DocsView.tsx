@@ -4,6 +4,7 @@ import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { ToolButton } from "../../ui/ToolButton";
 import { Badge } from "../../ui/Badge";
 import { Icon } from "../../ui/Icon";
+import { SortTh } from "../../ui/SortTh";
 import { useApp } from "../../store";
 import { useActiveConnection, useMappingFields } from "../../lib/queries";
 import { esJson } from "../../lib/es";
@@ -108,17 +109,15 @@ export function DocsView({ active }: { active: boolean }) {
             <tr>
               <th>_id</th>
               {columns.map((c) => (
-                <th
+                <SortTh
                   key={c}
-                  onClick={() => cycleSort(c)}
-                  style={{ cursor: "pointer" }}
+                  col={c}
+                  sort={sort ? { col: sort.field, dir: sort.dir } : null}
+                  onSort={cycleSort}
                   title="Click to sort: desc → asc → off"
                 >
                   {c}
-                  {sort?.field === c && (
-                    <span className="sort-arrow">{sort.dir === "desc" ? " ▼" : " ▲"}</span>
-                  )}
-                </th>
+                </SortTh>
               ))}
             </tr>
           </thead>

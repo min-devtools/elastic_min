@@ -68,10 +68,19 @@ export default function App() {
     const base = themeBase(theme);
     document.body.dataset.theme = theme;
     cls.toggle("light", base === "light");
-    // sync Monaco background with the active theme's editor color
+    // sync Monaco's own theme (bg + syntax colors) to the active app theme's palette
     requestAnimationFrame(() => {
-      const bg = getComputedStyle(document.body).getPropertyValue("--editor-bg").trim();
-      retintMonaco(base, bg);
+      const cs = getComputedStyle(document.body);
+      const v = (name: string) => cs.getPropertyValue(name).trim();
+      retintMonaco(base, {
+        blue: v("--blue"),
+        blue2: v("--blue-2"),
+        green: v("--green"),
+        purple: v("--purple"),
+        text3: v("--text-3"),
+        editorBg: v("--editor-bg"),
+        editorFg: v("--editor-fg"),
+      });
     });
     cls.toggle("compact", compact);
     cls.toggle("left-collapsed", leftCollapsed);

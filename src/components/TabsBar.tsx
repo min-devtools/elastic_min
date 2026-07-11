@@ -3,10 +3,12 @@ import { useApp } from "../store";
 import { ContextMenu } from "../ui/ContextMenu";
 
 export function TabsBar() {
-  const { tabs, activeTabId, activateTab, closeTab, newQueryTab, renameTab } = useApp();
+  const { tabs, activeTabId, activateTab, closeTab, newQueryTab, renameTab, reorderTab } = useApp();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [menu, setMenu] = useState<{ x: number; y: number; id: string } | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -24,7 +26,8 @@ export function TabsBar() {
         <button
           key={tab.id}
           type="button"
-          className={`tab ${tab.id === activeTabId ? "active" : ""}`}
+          draggable={!editingId}
+          className={`tab ${tab.id === activeTabId ? "active" : ""} ${dragId === tab.id ? "dragging" : ""} ${overId === tab.id && dragId && dragId !== tab.id ? "drag-over" : ""}`}
           onClick={() => activateTab(tab.id)}
           onAuxClick={(e) => {
             // middle-click closes the tab
@@ -38,6 +41,27 @@ export function TabsBar() {
           onContextMenu={(e) => {
             e.preventDefault();
             setMenu({ x: e.clientX, y: e.clientY, id: tab.id });
+          }}
+          onDragStart={(e) => {
+            setDragId(tab.id);
+            e.dataTransfer.effectAllowed = "move";
+          }}
+          onDragEnd={() => {
+            setDragId(null);
+            setOverId(null);
+          }}
+          onDragOver={(e) => {
+            if (!dragId || dragId === tab.id) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+            setOverId(tab.id);
+          }}
+          onDragLeave={() => setOverId((o) => (o === tab.id ? null : o))}
+          onDrop={(e) => {
+            e.preventDefault();
+            if (dragId && dragId !== tab.id) reorderTab(dragId, tab.id);
+            setDragId(null);
+            setOverId(null);
           }}
           title={tab.kind === "query" ? "Double-click to rename · right-click for menu" : undefined}
         >
@@ -73,7 +97,23 @@ export function TabsBar() {
           </span>
         </button>
       ))}
-      <button type="button" className="tab-add" title="New query tab (⌘N)" onClick={() => newQueryTab()}>
+      <button
+        type="button"
+        className="tab-add"
+        title="New query tab (⌘N)"
+        onClick={() => newQueryTab()}
+        onDragOver={(e) => {
+          if (!dragId) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          if (dragId) reorderTab(dragId, null);
+          setDragId(null);
+          setOverId(null);
+        }}
+      >
         <span>＋</span><span>Query</span>
       </button>
       {menu && (

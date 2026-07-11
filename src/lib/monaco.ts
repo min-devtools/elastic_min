@@ -11,43 +11,36 @@ self.MonacoEnvironment = {
   },
 };
 
-function defineThemes(darkBg = "#0d0f14", lightBg = "#fbfbfc") {
-  monaco.editor.defineTheme("elasticmin-dark", {
-    base: "vs-dark",
+// bare (no "#") hex for Monaco token colors; "#rrggbb" for editor.colors
+const bare = (v: string | undefined, fallback: string) =>
+  (v?.trim().startsWith("#") ? v.trim() : `#${fallback}`).slice(1);
+const withHash = (v: string | undefined, fallback: string) =>
+  v?.trim().startsWith("#") ? v.trim() : `#${fallback}`;
+
+function defineThemes(base: "dark" | "light", p: Record<string, string>) {
+  monaco.editor.defineTheme("elasticmin-live", {
+    base: base === "dark" ? "vs-dark" : "vs",
     inherit: true,
     rules: [
-      { token: "string.key.json", foreground: "5aa7ff" },
-      { token: "string.value.json", foreground: "58d68d" },
-      { token: "number", foreground: "79c0ff" },
-      { token: "keyword.json", foreground: "b794f4" },
+      { token: "string.key.json", foreground: bare(p.blue, "5aa7ff") },
+      { token: "string.value.json", foreground: bare(p.green, "58d68d") },
+      { token: "number", foreground: bare(p.blue2, "79c0ff") },
+      { token: "keyword.json", foreground: bare(p.purple, "b794f4") },
     ],
     colors: {
-      "editor.background": darkBg,
-      "editorLineNumber.foreground": "#4a4f58",
-      "editorGutter.background": darkBg,
-    },
-  });
-  monaco.editor.defineTheme("elasticmin-light", {
-    base: "vs",
-    inherit: true,
-    rules: [
-      { token: "string.key.json", foreground: "1f6feb" },
-      { token: "string.value.json", foreground: "1a7f4b" },
-      { token: "number", foreground: "0550ae" },
-    ],
-    colors: {
-      "editor.background": lightBg,
+      "editor.background": withHash(p.editorBg, base === "dark" ? "0d0f14" : "fbfbfc"),
+      "editor.foreground": withHash(p.editorFg, base === "dark" ? "d7dce5" : "1c2430"),
+      "editorLineNumber.foreground": withHash(p.text3, "4a4f58"),
     },
   });
 }
 
-defineThemes();
+defineThemes("dark", {});
 
-/** Re-tint Monaco to the active app theme's editor background. */
-export function retintMonaco(base: "dark" | "light", editorBg: string) {
-  if (base === "dark") defineThemes(editorBg || "#0d0f14", "#fbfbfc");
-  else defineThemes("#0d0f14", editorBg || "#fbfbfc");
-  monaco.editor.setTheme(base === "dark" ? "elasticmin-dark" : "elasticmin-light");
+/** Re-tint Monaco to the active app theme's actual palette (not just dark/light). */
+export function retintMonaco(base: "dark" | "light", palette: Record<string, string>) {
+  defineThemes(base, palette);
+  monaco.editor.setTheme("elasticmin-live");
 }
 
 // --- field-path autocomplete (fed by the active query tab's index mapping) ---
