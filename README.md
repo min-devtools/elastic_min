@@ -18,6 +18,64 @@ npm run tauri dev      # dev app
 npm run tauri build    # release bundle (.app / .dmg)
 ```
 
+## Internal macOS build (English)
+
+Build an unsigned `.app` for internal use on Apple Silicon Macs:
+
+```bash
+./bundle-macos.sh
+```
+
+Requirements: macOS on Apple Silicon (`arm64`), Node.js/npm, and the Rust toolchain. The app is created at:
+
+```text
+src-tauri/target/release/bundle/macos/ElasticMin.app
+```
+
+To transfer it, optionally create a ZIP while preserving the app bundle:
+
+```bash
+ditto -c -k --keepParent src-tauri/target/release/bundle/macos/ElasticMin.app ElasticMin-macos-arm64.zip
+```
+
+On the receiving Mac, copy `ElasticMin.app` to `/Applications`, then remove the quarantine attribute and launch it:
+
+```bash
+sudo xattr -rd com.apple.quarantine /Applications/ElasticMin.app
+open /Applications/ElasticMin.app
+```
+
+This internal build is unsigned and not notarized. Only run builds received from a trusted source.
+
+## Build macOS nội bộ (Tiếng Việt)
+
+Build `.app` chưa ký để dùng nội bộ trên máy Mac Apple Silicon:
+
+```bash
+./bundle-macos.sh
+```
+
+Yêu cầu: macOS chạy Apple Silicon (`arm64`), Node.js/npm và Rust toolchain. App được tạo tại:
+
+```text
+src-tauri/target/release/bundle/macos/ElasticMin.app
+```
+
+Có thể tạo file ZIP để chuyển sang máy khác mà vẫn giữ đúng cấu trúc app bundle:
+
+```bash
+ditto -c -k --keepParent src-tauri/target/release/bundle/macos/ElasticMin.app ElasticMin-macos-arm64.zip
+```
+
+Trên máy nhận, chép `ElasticMin.app` vào `/Applications`, sau đó gỡ thuộc tính quarantine và mở app:
+
+```bash
+sudo xattr -rd com.apple.quarantine /Applications/ElasticMin.app
+open /Applications/ElasticMin.app
+```
+
+Đây là bản build nội bộ chưa ký và chưa notarize. Chỉ chạy bản build nhận từ nguồn đáng tin cậy.
+
 ## Layout
 
 ```

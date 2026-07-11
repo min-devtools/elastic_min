@@ -411,10 +411,9 @@ body.light .docs-preview-editor { color: var(--editor-fg); }
 .welcome-hero {
   position: relative;
   overflow: hidden;
-  padding: 26px;
+  padding: 30px;
   display: grid;
-  align-content: space-between;
-  min-height: 360px;
+  align-content: center;
 }
 
 .welcome-hero:before {
@@ -427,7 +426,7 @@ body.light .docs-preview-editor { color: var(--editor-fg); }
   pointer-events: none;
 }
 
-.welcome-copy, .welcome-actions, .empty-index-map { position: relative; z-index: 1; }
+.welcome-copy, .welcome-actions { position: relative; z-index: 1; }
 
 .welcome-kicker, .create-kicker {
   color: var(--blue);
@@ -452,48 +451,50 @@ body.light .docs-preview-editor { color: var(--editor-fg); }
   line-height: 1.7;
 }
 
-.welcome-actions { display: flex; gap: 10px; align-items: center; margin-top: 18px; }
+.welcome-actions { display: flex; gap: 10px; align-items: center; margin-top: 20px; }
 
-.empty-index-map {
+.welcome-launch {
   display: grid;
-  grid-template-columns: 110px 1fr;
-  gap: 10px;
-  margin-top: 34px;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: color-mix(in oklab, var(--pane), var(--text) 3%);
-  font: 12px/1.5 var(--font-mono);
-  color: var(--text-2);
-}
-
-.empty-index-map code { color: var(--text); }
-
-.welcome-panel {
-  padding: 18px;
-  display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
   gap: 12px;
-  min-width: 0;
-  min-height: 0;
 }
 
-.welcome-grid {
+.welcome-card {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 12px;
+  row-gap: 4px;
+  align-items: center;
+  text-align: left;
+  padding: 16px;
+  border: 1px solid var(--line-2);
+  border-radius: 14px;
+  background: color-mix(in oklab, var(--pane), transparent 4%);
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
 }
 
-.welcome-step {
-  padding: 13px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
+.welcome-card:hover {
+  border-color: color-mix(in oklab, var(--blue), transparent 45%);
   background: var(--pane-2);
+  transform: translateY(-1px);
 }
 
-.welcome-step strong { display: block; margin-bottom: 6px; color: var(--text); }
+.welcome-card-icon {
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  color: var(--blue);
+  background: color-mix(in oklab, var(--blue), transparent 86%);
+}
 
-.welcome-step span { color: var(--text-3); font-size: 12px; line-height: 1.55; }
+.welcome-card strong { color: var(--text); font-size: 14px; }
+
+.welcome-card-desc { color: var(--text-3); font-size: 12px; line-height: 1.45; }
 
 .create-index-view, .connection-view { grid-template-rows: auto 1fr; }
 
@@ -656,6 +657,40 @@ body.light .docs-preview-editor { color: var(--editor-fg); }
   padding: 24px;
   align-content: start;
 }
+.settings-credit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0 4px;
+}
+.settings-github {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.settings-github:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+.settings-credit-link {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-primary);
+  opacity: 0.8;
+}
+.settings-credit-link:hover { opacity: 1; text-decoration: underline; }
 .settings-header { display: grid; gap: 8px; }
 .settings-header h2 { margin: 0; font-size: 18px; color: var(--text); }
 .settings-card {

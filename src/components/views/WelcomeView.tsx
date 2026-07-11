@@ -1,18 +1,25 @@
 import { ToolButton } from "../../ui/ToolButton";
-import { Icon } from "../../ui/Icon";
+import { Icon, type IconName } from "../../ui/Icon";
 import { useApp } from "../../store";
 import { useActiveConnection } from "../../lib/queries";
-
-const STEPS = [
-  { title: "1. Add endpoint", text: "Paste local, cloud or self-hosted Elasticsearch URL and choose an auth method." },
-  { title: "2. Test handshake", text: "Run cluster health, version and permission checks before showing data." },
-  { title: "3. Load objects", text: "Fetch indexes, aliases, templates, mappings and recent query history." },
-  { title: "4. Continue work", text: "Open Query, Documents, All Indexes, or Create Index after the connection is ready." },
-];
 
 export function WelcomeView({ active }: { active: boolean }) {
   const conn = useActiveConnection();
   const { openTab, setEditingConn, newQueryTab } = useApp();
+
+  const newConnection = () => {
+    setEditingConn(null);
+    openTab("connection");
+  };
+
+  const actions: { icon: IconName; label: string; desc: string; onClick: () => void }[] = [
+    { icon: "play", label: "New query", desc: "Open a query tab and run search DSL.", onClick: () => newQueryTab() },
+    { icon: "indexes", label: "Browse indexes", desc: "List indexes, sizes and doc counts.", onClick: () => openTab("indexes") },
+    { icon: "folder-plus", label: "Create index", desc: "Define mappings and settings.", onClick: () => openTab("create-index") },
+    { icon: "cluster", label: "Cluster health", desc: "Nodes, shards and status.", onClick: () => openTab("cluster") },
+    { icon: "history", label: "Query history", desc: "Re-run what you ran before.", onClick: () => openTab("history") },
+    { icon: "settings", label: "Settings", desc: "Theme, fonts and AI provider.", onClick: () => openTab("settings") },
+  ];
 
   return (
     <section className={`content welcome-view ${active ? "active" : ""}`}>
@@ -20,51 +27,33 @@ export function WelcomeView({ active }: { active: boolean }) {
         <div className="welcome-hero">
           <div className="welcome-copy">
             <div className="welcome-kicker">
-              {conn ? `connected · ${conn.name}` : "No active connection · new workspace"}
+              {conn ? `connected · ${conn.name}` : "no active connection"}
             </div>
-            <h1 className="welcome-title">Welcome to ElasticMin</h1>
+            <h1 className="welcome-title">ElasticMin</h1>
             <p className="welcome-text">
-              Start by creating a connection to an Elasticsearch cluster. After the handshake
-              succeeds, ElasticMin can load indexes, mappings, aliases and sample documents into
-              this workspace.
+              {conn
+                ? "You're connected. Jump straight into a query or browse your indexes."
+                : "A tiny Elasticsearch client. Connect to a cluster to load indexes, mappings and documents."}
             </p>
             <div className="welcome-actions">
-              <ToolButton
-                variant="primary"
-                onClick={() => {
-                  setEditingConn(null);
-                  openTab("connection");
-                }}
-              >
-                <Icon name="zap" /> New connection
+              <ToolButton variant="primary" onClick={conn ? () => newQueryTab() : newConnection}>
+                <Icon name={conn ? "play" : "zap"} /> {conn ? "New query" : "New connection"}
               </ToolButton>
-              <ToolButton onClick={() => newQueryTab()}>
-                <Icon name="play" /> Open sample query
+              <ToolButton onClick={conn ? newConnection : () => newQueryTab()}>
+                <Icon name={conn ? "zap" : "play"} /> {conn ? "Manage connection" : "Try a query"}
               </ToolButton>
             </div>
           </div>
-          <div className="empty-index-map">
-            <div>endpoint</div><code>https://localhost:9200</code>
-            <div>auth</div><code>API key / basic / no auth</code>
-            <div>test</div><code>GET /_cluster/health</code>
-            <div>then</div><code>load indexes → pick index → query documents</code>
-          </div>
         </div>
-        <div className="welcome-panel">
-          <div>
-            <div className="welcome-kicker">First-run workflow</div>
-            <h2 style={{ margin: "8px 0 0", fontSize: 18 }}>
-              Connect first, then decide whether to query or create an index.
-            </h2>
-          </div>
-          <div className="welcome-grid">
-            {STEPS.map((s) => (
-              <div className="welcome-step" key={s.title}>
-                <strong>{s.title}</strong>
-                <span>{s.text}</span>
-              </div>
-            ))}
-          </div>
+
+        <div className="welcome-launch">
+          {actions.map((a) => (
+            <button type="button" className="welcome-card" key={a.label} onClick={a.onClick}>
+              <span className="welcome-card-icon"><Icon name={a.icon} size={18} /></span>
+              <strong>{a.label}</strong>
+              <span className="welcome-card-desc">{a.desc}</span>
+            </button>
+          ))}
         </div>
       </div>
     </section>

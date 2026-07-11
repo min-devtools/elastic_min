@@ -1,3 +1,4 @@
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { useApp } from "../store";
 import { useActiveConnection, useClusterHealth, useClusterInfo } from "../lib/queries";
 import { version } from "../../package.json";
@@ -54,6 +55,14 @@ export function Statusbar() {
         <span>UTF-8</span>
         <span>{activeTab?.title ?? ""}</span>
         <span>v{version}</span>
+        <span
+          className="credit"
+          style={{ cursor: "pointer" }}
+          title="Created by @ngthminhdev — open LinkedIn"
+          onClick={() => openUrl("https://www.linkedin.com/in/ngthminh-dev/")}
+        >
+          by @ngthminhdev
+        </span>
       </div>
     </footer>
   );

@@ -177,7 +177,9 @@ body.resizing-y { cursor: row-resize; }
 
 .tab {
   height: 31px;
-  min-width: 132px;
+  min-width: 96px;
+  max-width: 190px;
+  flex: 0 1 auto;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -195,6 +197,15 @@ body.resizing-y { cursor: row-resize; }
 
 /* svg icons default to their own native drag gesture in WebKit — let it bubble to .tab instead */
 .tab svg, .tab img { -webkit-user-drag: none; }
+
+/* title label: single line, ellipsis when tab is narrow */
+.tab > span:not(.tab-close) {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 .tab:hover { color: var(--text); background: var(--pane-2); }
 
@@ -348,6 +359,8 @@ body.light .inspector-editor-host { background: var(--editor-bg); }
   min-width: 0;
   flex: 0 1 auto;
 }
+
+.statusbar .credit { color: var(--accent-primary); opacity: 0.85; font-weight: 600; }
 
 .tab-title-input {
   width: 110px;

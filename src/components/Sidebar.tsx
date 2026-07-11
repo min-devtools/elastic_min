@@ -36,12 +36,27 @@ export function Sidebar() {
     connections, activeConnId, setActiveConn, deleteConnection, setEditingConn,
     tabs, activeTabId, openTab, activeIndex, setActiveIndex, showToast,
     savedQueries, deleteSavedQuery, renameSavedQuery, newQueryTab, history, openDialog,
+    indexRecency,
   } = useApp();
 
   const activeKind = tabs.find((t) => t.id === activeTabId)?.kind;
   const q = filter.trim().toLowerCase();
-  const indexList = (indices.data ?? []).filter((i) => !q || i.index.includes(q));
-  const shownIndexes = q ? indexList.slice(0, 30) : indexList.slice(0, 12);
+  const indexList = (indices.data ?? [])
+    .filter((i) => !q || i.index.includes(q))
+    .sort((a, b) => {
+      const ai = indexRecency.indexOf(a.index);
+      const bi = indexRecency.indexOf(b.index);
+      if (ai === -1 && bi === -1) return 0;
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    });
+  const SIDEBAR_CAP = 5;
+  const shownIndexes = q ? indexList.slice(0, 30) : indexList.slice(0, SIDEBAR_CAP);
+  const hiddenIndexCount = q ? 0 : Math.max(0, indexList.length - SIDEBAR_CAP);
+  const filteredSavedQueries = savedQueries.filter((sq) => !q || sq.name.toLowerCase().includes(q));
+  const shownSavedQueries = filteredSavedQueries.slice(0, SIDEBAR_CAP);
+  const hiddenSavedQueryCount = Math.max(0, filteredSavedQueries.length - SIDEBAR_CAP);
   const aliasCount = new Set((indices.data ?? []).flatMap((i) => i.aliases)).size;
 
   const connMenuItems: ContextMenuItem[] = connMenu
@@ -142,24 +157,28 @@ export function Sidebar() {
         {savedQueries.length > 0 && (
           <div className="group">
             <div className="group-title"><span>Saved queries</span><span>{savedQueries.length}</span></div>
-            {savedQueries
-              .filter((sq) => !q || sq.name.toLowerCase().includes(q))
-              .map((sq) => (
-                <div
-                  key={sq.id}
-                  className="nav-item"
-                  title={`${sq.method} ${sq.path}`}
-                  onClick={() => newQueryTab({ method: sq.method, path: sq.path, body: sq.body })}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    setQueryMenu({ x: e.clientX, y: e.clientY, id: sq.id });
-                  }}
-                >
-                  <Icon name="save" className="soft-blue" />
-                  <span>{sq.name}</span>
-                  <Badge>{sq.method}</Badge>
-                </div>
-              ))}
+            {shownSavedQueries.map((sq) => (
+              <div
+                key={sq.id}
+                className="nav-item"
+                title={`${sq.method} ${sq.path}`}
+                onClick={() => newQueryTab({ method: sq.method, path: sq.path, body: sq.body })}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setQueryMenu({ x: e.clientX, y: e.clientY, id: sq.id });
+                }}
+              >
+                <Icon name="save" className="soft-blue" />
+                <span>{sq.name}</span>
+                <Badge>{sq.method}</Badge>
+              </div>
+            ))}
+            {hiddenSavedQueryCount > 0 && (
+              <div className="nav-item" onClick={() => openTab("saved-queries")}>
+                <Icon name="more-horizontal" className="soft-blue" />
+                <span>{hiddenSavedQueryCount} more…</span>
+              </div>
+            )}
           </div>
         )}
 
@@ -189,6 +208,12 @@ export function Sidebar() {
               <span>{formatDocCount(i.docsCount)}</span>
             </div>
           ))}
+          {hiddenIndexCount > 0 && (
+            <div className="nav-item" onClick={() => openTab("indexes")}>
+              <Icon name="more-horizontal" className="soft-orange" />
+              <span>{hiddenIndexCount} more…</span>
+            </div>
+          )}
         </div>
 
         {conn && (

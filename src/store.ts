@@ -133,6 +133,8 @@ interface AppState {
   docsTabCounter: number;
 
   activeIndex: string | null;
+  /** index names, most-recently-acted-on first — drives sidebar ordering */
+  indexRecency: string[];
   selectedDoc: EsHit | null;
   /** table column the user clicked — highlighted in the inspector JSON */
   focusField: string | null;
@@ -224,6 +226,7 @@ export const useApp = create<AppState>((set, get) => ({
   docsTabCounter: session?.docsTabCounter ?? 0,
 
   activeIndex: session?.activeIndex ?? null,
+  indexRecency: [],
   selectedDoc: null,
   focusField: null,
   editingConnId: null,
@@ -439,7 +442,11 @@ export const useApp = create<AppState>((set, get) => ({
         : s,
     ),
 
-  setActiveIndex: (index) => set({ activeIndex: index }),
+  setActiveIndex: (index) =>
+    set((s) => ({
+      activeIndex: index,
+      indexRecency: index ? [index, ...s.indexRecency.filter((i) => i !== index)] : s.indexRecency,
+    })),
   // auto show/hide the right-dock inspector with what's selected — nothing selected, nothing to show
   selectDoc: (doc, focusField = null) => set({ selectedDoc: doc, focusField, rightCollapsed: doc === null }),
   setEditingConn: (id) => set({ editingConnId: id }),

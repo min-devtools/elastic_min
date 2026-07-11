@@ -1,3 +1,4 @@
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { Icon, type IconName } from "../../ui/Icon";
 import { useApp } from "../../store";
 import { useSystemFonts } from "../../lib/queries";
@@ -257,6 +258,23 @@ export function SettingsView({ active }: { active: boolean }) {
             desc="Stored in Tauri app-data (elasticmin.json). Right-click a connection in the sidebar to edit or remove it."
             control={<span />}
           />
+        </div>
+
+        <div className="settings-credit">
+          <button
+            type="button"
+            className="settings-github"
+            onClick={() => openUrl("https://github.com/ngthminhdev/elastic_min")}
+          >
+            <Icon name="github" /> View on GitHub
+          </button>
+          <button
+            type="button"
+            className="settings-credit-link"
+            onClick={() => openUrl("https://www.linkedin.com/in/ngthminh-dev/")}
+          >
+            Created by @ngthminhdev
+          </button>
         </div>
       </div>
     </section>
