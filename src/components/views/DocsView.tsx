@@ -5,8 +5,9 @@ import { ToolButton } from "../../ui/ToolButton";
 import { Badge } from "../../ui/Badge";
 import { Icon } from "../../ui/Icon";
 import { SortTh } from "../../ui/SortTh";
+import { Combobox } from "../../ui/Combobox";
 import { useApp } from "../../store";
-import { useActiveConnection, useMappingFields } from "../../lib/queries";
+import { useActiveConnection, useIndices, useMappingFields } from "../../lib/queries";
 import { esJson } from "../../lib/es";
 import { formatValue, getPath, valueClass } from "../../lib/format";
 import type { EsHit } from "../../lib/types";
@@ -15,15 +16,20 @@ const PAGE_SIZE = 50;
 
 type SortDir = "desc" | "asc";
 
-export function DocsView({ active }: { active: boolean }) {
+export function DocsView({ tabId, active }: { tabId: string; active: boolean }) {
   const conn = useActiveConnection();
-  const { activeIndex, selectedDoc, selectDoc, showToast } = useApp();
-  const index = activeIndex ?? conn?.defaultIndex ?? "";
+  const { selectedDoc, selectDoc, showToast, setDocsTabIndex } = useApp();
+  const dt = useApp((s) => s.docsTabs[tabId]);
+  const indices = useIndices();
+  const index = dt?.index ?? "";
   const mapping = useMappingFields(index || null);
   const [filter, setFilter] = useState("");
   const [applied, setApplied] = useState("");
   const [page, setPage] = useState(0);
   const [sort, setSort] = useState<{ field: string; dir: SortDir } | null>(null);
+  const [normalized, setNormalized] = useState(false);
+  const [paths, setPaths] = useState<string[]>([]);
+  const [pathInput, setPathInput] = useState("");
 
   // sort on .keyword subfield when the mapping says text + keyword
   const sortField = (col: string): string => {
@@ -59,11 +65,14 @@ export function DocsView({ active }: { active: boolean }) {
   const total = search.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  const columns = useMemo(() => {
+  const rawColumns = useMemo(() => {
     const cols = new Set<string>();
     for (const h of hits.slice(0, 20)) Object.keys(h._source).forEach((k) => cols.add(k));
     return [...cols]; // all columns — the grid scrolls horizontally
   }, [hits]);
+  const columns = normalized ? paths : rawColumns;
+
+  if (!dt) return null;
 
   // click cycle: desc → asc → none
   const cycleSort = (col: string) => {
@@ -80,15 +89,38 @@ export function DocsView({ active }: { active: boolean }) {
     setPage(0);
   };
 
+  const addPath = () => {
+    const path = pathInput.trim();
+    if (!path) return;
+    setPaths((current) => (current.includes(path) ? current : [...current, path]));
+    setNormalized(true);
+    setPathInput("");
+  };
+
   return (
     <section className={`content docs-view ${active ? "active" : ""}`}>
       <div className="doc-head">
         <div className="seg">
           <strong>Documents</strong>
-          <span>{index ? `${index}${applied ? ` / ${applied}` : ""}` : "no index selected"}</span>
+          <Combobox
+            id={`docs-index-${tabId}`}
+            value={index}
+            placeholder="Select index…"
+            options={(indices.data ?? []).map((i) => ({ value: i.index, hint: i.health }))}
+            onChange={(v) => setDocsTabIndex(tabId, v)}
+          />
+          {applied && <span>/ {applied}</span>}
           <Badge>{search.isFetching ? "loading…" : total ? `${total} docs` : ""}</Badge>
         </div>
         <div className="seg">
+          <ToolButton
+            iconOnly
+            title={normalized ? "Show raw top-level columns" : "Show normalized JSON-path columns"}
+            aria-label={normalized ? "Show raw top-level columns" : "Show normalized JSON-path columns"}
+            onClick={() => setNormalized((value) => !value)}
+          >
+            <Icon name="table" />
+          </ToolButton>
           <input
             className="side-search"
             style={{ width: 250, height: 28 }}
@@ -99,7 +131,30 @@ export function DocsView({ active }: { active: boolean }) {
               if (e.key === "Enter") applyFilter(filter);
             }}
           />
-          <ToolButton onClick={() => applyFilter(filter)}><Icon name="filter" /> Filter</ToolButton>
+          <ToolButton iconOnly title="Apply document filter" aria-label="Apply document filter" onClick={() => applyFilter(filter)}>
+            <Icon name="filter" />
+          </ToolButton>
+          {normalized && (
+            <>
+              <input
+                className="side-search"
+                style={{ width: 220, height: 28 }}
+                list="document-mapping-paths"
+                placeholder="Add JSON path"
+                value={pathInput}
+                onChange={(e) => setPathInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") addPath();
+                }}
+              />
+              <datalist id="document-mapping-paths">
+                {(mapping.data ?? []).map((field) => <option key={field.path} value={field.path} />)}
+              </datalist>
+              <ToolButton iconOnly title="Add JSON path column" aria-label="Add JSON path column" onClick={addPath}>
+                <Icon name="plus" />
+              </ToolButton>
+            </>
+          )}
         </div>
       </div>
       <div className="result-grid">
@@ -117,6 +172,18 @@ export function DocsView({ active }: { active: boolean }) {
                   title="Click to sort: desc → asc → off"
                 >
                   {c}
+                  {normalized && (
+                    <span
+                      className="th-remove"
+                      title="Remove column"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPaths((current) => current.filter((path) => path !== c));
+                      }}
+                    >
+                      <Icon name="x" size={12} />
+                    </span>
+                  )}
                 </SortTh>
               ))}
             </tr>
@@ -152,7 +219,7 @@ export function DocsView({ active }: { active: boolean }) {
             ))}
             {!hits.length && !search.isFetching && (
               <tr><td colSpan={columns.length + 1} style={{ color: "var(--text-3)" }}>
-                {conn ? (index ? "no documents" : "select an index in the sidebar") : "no connection"}
+                {conn ? (index ? "no documents" : "select an index above") : "no connection"}
               </td></tr>
             )}
           </tbody>
@@ -160,22 +227,24 @@ export function DocsView({ active }: { active: boolean }) {
       </div>
       <div className="result-foot">
         <div className="seg">
-          <ToolButton disabled={page === 0} title="First page" onClick={() => setPage(0)}>
-            «
+          <ToolButton iconOnly disabled={page === 0} title="First page" aria-label="First page" onClick={() => setPage(0)}>
+            <Icon name="chevrons-left" />
           </ToolButton>
-          <ToolButton disabled={page === 0} title="Previous 50 (from −50)" onClick={() => setPage((p) => Math.max(0, p - 1))}>
-            ‹
+          <ToolButton iconOnly disabled={page === 0} title="Previous 50 documents" aria-label="Previous page" onClick={() => setPage((p) => Math.max(0, p - 1))}>
+            <Icon name="arrow-left" />
           </ToolButton>
           <Badge>{page + 1} / {totalPages}</Badge>
           <ToolButton
+            iconOnly
             disabled={page + 1 >= totalPages}
             title="Next 50 (from +50)"
+            aria-label="Next page"
             onClick={() => setPage((p) => p + 1)}
           >
-            ›
+            <Icon name="arrow-right" />
           </ToolButton>
-          <ToolButton disabled={page + 1 >= totalPages} title="Last page" onClick={() => setPage(totalPages - 1)}>
-            »
+          <ToolButton iconOnly disabled={page + 1 >= totalPages} title="Last page" aria-label="Last page" onClick={() => setPage(totalPages - 1)}>
+            <Icon name="chevrons-right" />
           </ToolButton>
         </div>
         <div className="seg">

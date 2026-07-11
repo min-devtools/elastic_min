@@ -25,7 +25,7 @@ export function Titlebar() {
       <div className="traffic">
         <img src={logo} alt="" className="app-logo" />
         <strong>ElasticMin</strong>
-        <Badge>{conn ? health.data?.status ?? conn.name : "no cluster"}</Badge>
+        <Badge tone={health.data?.status ?? "idle"}>{conn ? health.data?.status ?? "connecting…" : "no cluster"}</Badge>
       </div>
       <button type="button" className="search" title="Search everywhere (⌘K)" onClick={() => setCommandOpen(true)}>
         <Icon name="search" size={13} />
@@ -34,11 +34,11 @@ export function Titlebar() {
         <kbd>⌘K</kbd>
       </button>
       <div className="toolbar">
-        <ToolButton variant="primary" title="Run current query (⌘↵)" onClick={runActiveQuery}>
-          <Icon name="play" /> Run
+        <ToolButton iconOnly variant="primary" title="Run current query (⌘↵)" aria-label="Run current query" onClick={runActiveQuery}>
+          <Icon name="play" />
         </ToolButton>
-        <ToolButton title="New query tab (⌘N)" onClick={() => newQueryTab()}>
-          <Icon name="plus" /> Query
+        <ToolButton iconOnly title="New query tab (⌘N)" aria-label="New query tab" onClick={() => newQueryTab()}>
+          <Icon name="plus" />
         </ToolButton>
         <ToolButton
           variant="danger"
@@ -47,26 +47,30 @@ export function Titlebar() {
             if (activeTab?.kind === "query") updateQueryTab(activeTabId, { running: false });
             showToast("Query cancelled", "The active request result will be ignored.");
           }}
+          iconOnly
           title="Cancel running query"
+          aria-label="Cancel running query"
         >
-          <Icon name="x" /> Cancel
+          <Icon name="x" />
         </ToolButton>
         <ToolButton
+          iconOnly
           title="Reload cluster health, indexes and mappings"
+          aria-label="Refresh cluster data"
           onClick={() => {
             void queryClient.invalidateQueries();
             showToast("Refreshed", "Cluster health, indexes and mappings are being reloaded.");
           }}
         >
-          <Icon name="refresh" /> Refresh
+          <Icon name="refresh" />
         </ToolButton>
-        <ToolButton title="Toggle theme" onClick={toggleTheme}>
+        <ToolButton iconOnly title="Toggle theme" aria-label="Toggle theme" onClick={toggleTheme}>
           <Icon name={themeBase(theme) === "dark" ? "sun" : "moon"} />
         </ToolButton>
-        <ToolButton title="Toggle compact density" onClick={toggleCompact}>
+        <ToolButton iconOnly title="Toggle compact density" aria-label="Toggle compact density" onClick={toggleCompact}>
           <Icon name="rows" />
         </ToolButton>
-        <ToolButton title="Settings (⌘,)" onClick={() => openTab("settings")}>
+        <ToolButton iconOnly title="Settings (⌘,)" aria-label="Open settings" onClick={() => openTab("settings")}>
           <Icon name="settings" />
         </ToolButton>
       </div>

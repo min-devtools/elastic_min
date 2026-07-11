@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { themeBase } from "./lib/themes";
 import type {
   Connection,
+  DocsTabState,
   EsHit,
   HistoryEntry,
   QueryResult,
@@ -11,20 +12,25 @@ import type {
   TabKind,
 } from "./lib/types";
 
-const TAB_META: Record<TabKind, { title: string; icon: string; iconClass: string }> = {
-  welcome: { title: "Welcome", icon: "◆", iconClass: "soft-blue" },
-  connection: { title: "New Connection", icon: "＋", iconClass: "soft-blue" },
-  query: { title: "Query", icon: "⌁", iconClass: "soft-blue" },
-  "quick-query": { title: "Quick Query", icon: "⌕", iconClass: "soft-green" },
-  docs: { title: "Documents", icon: "▤", iconClass: "soft-green" },
-  indexes: { title: "All Indexes", icon: "◧", iconClass: "soft-orange" },
-  "create-index": { title: "Create Index", icon: "＋", iconClass: "soft-green" },
-  cluster: { title: "Cluster", icon: "◌", iconClass: "soft-green" },
-  mapping: { title: "Mapping", icon: "⌬", iconClass: "soft-blue" },
-  settings: { title: "Settings", icon: "⚙", iconClass: "soft-orange" },
-  history: { title: "Query History", icon: "↺", iconClass: "soft-orange" },
-  "index-stats": { title: "Index Stats", icon: "∿", iconClass: "soft-green" },
+const TAB_META: Record<TabKind, { title: string; icon: TabDef["icon"]; iconClass: string }> = {
+  welcome: { title: "Welcome", icon: "sparkles", iconClass: "soft-blue" },
+  connection: { title: "New Connection", icon: "plug", iconClass: "soft-blue" },
+  query: { title: "Query", icon: "query", iconClass: "soft-blue" },
+  "quick-query": { title: "Quick Query", icon: "quick-query", iconClass: "soft-green" },
+  docs: { title: "Documents", icon: "docs", iconClass: "soft-green" },
+  indexes: { title: "All Indexes", icon: "indexes", iconClass: "soft-orange" },
+  "create-index": { title: "Create Index", icon: "folder-plus", iconClass: "soft-green" },
+  cluster: { title: "Cluster", icon: "cluster", iconClass: "soft-green" },
+  mapping: { title: "Mapping", icon: "mapping", iconClass: "soft-blue" },
+  settings: { title: "Settings", icon: "settings", iconClass: "soft-orange" },
+  history: { title: "Query History", icon: "history", iconClass: "soft-orange" },
+  "index-stats": { title: "Index Stats", icon: "activity", iconClass: "soft-green" },
+  "saved-queries": { title: "Saved Queries", icon: "save", iconClass: "soft-blue" },
 };
+
+function docsTabTitle(index: string): string {
+  return index ? `Documents · ${index}` : "Documents";
+}
 
 const HISTORY_CAP = 200;
 
@@ -50,6 +56,8 @@ function loadSession(): {
   activeTabId: string;
   queryTabs: Record<string, QueryTabState>;
   queryTabCounter: number;
+  docsTabs: Record<string, DocsTabState>;
+  docsTabCounter: number;
   activeIndex: string | null;
 } | null {
   try {
@@ -67,15 +75,26 @@ function loadSession(): {
         running: false,
       };
     }
-    const tabs: TabDef[] = s.tabs.filter(
-      (t: TabDef) => TAB_META[t.kind] && (t.kind !== "query" || queryTabs[t.id]),
-    );
+    const docsTabs: Record<string, DocsTabState> = {};
+    for (const [id, dt] of Object.entries<any>(s.docsTabs ?? {})) {
+      docsTabs[id] = { index: typeof dt.index === "string" ? dt.index : "" };
+    }
+    const tabs: TabDef[] = s.tabs
+      .filter(
+        (t: TabDef) =>
+          TAB_META[t.kind] &&
+          (t.kind !== "query" || queryTabs[t.id]) &&
+          (t.kind !== "docs" || docsTabs[t.id]),
+      )
+      .map((t: TabDef) => ({ ...t, icon: TAB_META[t.kind].icon, iconClass: TAB_META[t.kind].iconClass }));
     if (!tabs.length) return null;
     return {
       tabs,
       activeTabId: tabs.some((t) => t.id === s.activeTabId) ? s.activeTabId : tabs[0].id,
       queryTabs,
       queryTabCounter: Number(s.queryTabCounter) || 0,
+      docsTabs,
+      docsTabCounter: Number(s.docsTabCounter) || 0,
       activeIndex: typeof s.activeIndex === "string" ? s.activeIndex : null,
     };
   } catch {
@@ -91,6 +110,15 @@ export interface ToastMsg {
   kind?: "ok" | "warn" | "err";
 }
 
+export interface DialogRequest {
+  kind: "prompt" | "confirm";
+  title: string;
+  message?: string;
+  defaultValue?: string;
+  confirmLabel?: string;
+  danger?: boolean;
+}
+
 interface AppState {
   connections: Connection[];
   activeConnId: string | null;
@@ -101,6 +129,8 @@ interface AppState {
   activeTabId: string;
   queryTabs: Record<string, QueryTabState>;
   queryTabCounter: number;
+  docsTabs: Record<string, DocsTabState>;
+  docsTabCounter: number;
 
   activeIndex: string | null;
   selectedDoc: EsHit | null;
@@ -124,6 +154,7 @@ interface AppState {
   rightCollapsed: boolean;
   commandOpen: boolean;
   toast: ToastMsg | null;
+  dialog: (DialogRequest & { resolve: (value: string | null) => void }) | null;
 
   // actions
   setConnections: (conns: Connection[]) => void;
@@ -139,6 +170,8 @@ interface AppState {
 
   openTab: (kind: TabKind) => void;
   newQueryTab: (init?: Partial<QueryTabState>) => string;
+  openDocsTab: (index?: string) => string;
+  setDocsTabIndex: (id: string, index: string) => void;
   closeTab: (id: string) => void;
   activateTab: (id: string) => void;
   reorderTab: (id: string, beforeId: string | null) => void;
@@ -163,6 +196,8 @@ interface AppState {
   setCommandOpen: (open: boolean) => void;
   showToast: (title: string, body: string, kind?: ToastMsg["kind"]) => void;
   clearToast: () => void;
+  /** in-app replacement for window.prompt/confirm — those are unimplemented in the Tauri webview */
+  openDialog: (req: DialogRequest) => Promise<string | null>;
 }
 
 let toastTimer: number | undefined;
@@ -185,6 +220,8 @@ export const useApp = create<AppState>((set, get) => ({
   activeTabId: session?.activeTabId ?? "welcome",
   queryTabs: session?.queryTabs ?? {},
   queryTabCounter: session?.queryTabCounter ?? 0,
+  docsTabs: session?.docsTabs ?? {},
+  docsTabCounter: session?.docsTabCounter ?? 0,
 
   activeIndex: session?.activeIndex ?? null,
   selectedDoc: null,
@@ -213,6 +250,7 @@ export const useApp = create<AppState>((set, get) => ({
   rightCollapsed: false,
   commandOpen: false,
   toast: null,
+  dialog: null,
 
   setConnections: (conns) => set({ connections: conns }),
   setSavedQueries: (qs) => set({ savedQueries: qs }),
@@ -268,6 +306,11 @@ export const useApp = create<AppState>((set, get) => ({
       get().newQueryTab();
       return;
     }
+    if (kind === "docs") {
+      // docs tabs are multi-instance (one per index) — route through openDocsTab
+      get().openDocsTab();
+      return;
+    }
     const existing = s.tabs.find((t) => t.kind === kind);
     if (existing) return set({ activeTabId: existing.id });
     set({
@@ -304,6 +347,36 @@ export const useApp = create<AppState>((set, get) => ({
     return id;
   },
 
+  openDocsTab: (index) => {
+    const s = get();
+    const conn = activeConnection(s);
+    const idx = index ?? s.activeIndex ?? conn?.defaultIndex ?? "";
+    const existingId = s.tabs.find((t) => t.kind === "docs" && s.docsTabs[t.id]?.index === idx)?.id;
+    if (existingId) {
+      set({ activeTabId: existingId });
+      return existingId;
+    }
+    const n = s.docsTabCounter + 1;
+    const id = `docs-${n}`;
+    set({
+      docsTabCounter: n,
+      tabs: [...s.tabs, { id, kind: "docs", ...TAB_META.docs, title: docsTabTitle(idx) }],
+      activeTabId: id,
+      docsTabs: { ...s.docsTabs, [id]: { index: idx } },
+    });
+    return id;
+  },
+
+  setDocsTabIndex: (id, index) =>
+    set((s) =>
+      s.docsTabs[id]
+        ? {
+            docsTabs: { ...s.docsTabs, [id]: { index } },
+            tabs: s.tabs.map((t) => (t.id === id ? { ...t, title: docsTabTitle(index) } : t)),
+          }
+        : s,
+    ),
+
   closeTab: (id) =>
     set((s) => {
       const idx = s.tabs.findIndex((t) => t.id === id);
@@ -311,15 +384,27 @@ export const useApp = create<AppState>((set, get) => ({
       const tabs = s.tabs.filter((t) => t.id !== id);
       const queryTabs = { ...s.queryTabs };
       delete queryTabs[id];
+      const docsTabs = { ...s.docsTabs };
+      delete docsTabs[id];
+      // renumber from 1 again once the last tab of a kind closes, instead of counting up forever
+      const queryTabCounter = tabs.some((t) => t.kind === "query") ? s.queryTabCounter : 0;
+      const docsTabCounter = tabs.some((t) => t.kind === "docs") ? s.docsTabCounter : 0;
       let activeTabId = s.activeTabId;
       if (activeTabId === id) {
         const next = tabs[Math.min(idx, tabs.length - 1)];
         activeTabId = next?.id ?? "";
       }
       if (tabs.length === 0) {
-        return { tabs: [{ id: "welcome", kind: "welcome", ...TAB_META.welcome }], activeTabId: "welcome", queryTabs };
+        return {
+          tabs: [{ id: "welcome", kind: "welcome", ...TAB_META.welcome }],
+          activeTabId: "welcome",
+          queryTabs,
+          docsTabs,
+          queryTabCounter,
+          docsTabCounter,
+        };
       }
-      return { tabs, activeTabId, queryTabs };
+      return { tabs, activeTabId, queryTabs, docsTabs, queryTabCounter, docsTabCounter };
     }),
 
   activateTab: (id) => set({ activeTabId: id }),
@@ -355,7 +440,8 @@ export const useApp = create<AppState>((set, get) => ({
     ),
 
   setActiveIndex: (index) => set({ activeIndex: index }),
-  selectDoc: (doc, focusField = null) => set({ selectedDoc: doc, focusField }),
+  // auto show/hide the right-dock inspector with what's selected — nothing selected, nothing to show
+  selectDoc: (doc, focusField = null) => set({ selectedDoc: doc, focusField, rightCollapsed: doc === null }),
   setEditingConn: (id) => set({ editingConnId: id }),
   setTheme: (id) => {
     localStorage.setItem("elasticmin:theme", id);
@@ -411,4 +497,17 @@ export const useApp = create<AppState>((set, get) => ({
     window.clearTimeout(toastTimer);
     set({ toast: null });
   },
+
+  openDialog: (req) =>
+    new Promise<string | null>((resolve) => {
+      set({
+        dialog: {
+          ...req,
+          resolve: (value) => {
+            resolve(value);
+            set({ dialog: null });
+          },
+        },
+      });
+    }),
 }));

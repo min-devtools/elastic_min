@@ -190,7 +190,11 @@ body.resizing-y { cursor: row-resize; }
   cursor: pointer;
   position: relative;
   transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+  -webkit-user-drag: element;
 }
+
+/* svg icons default to their own native drag gesture in WebKit — let it bubble to .tab instead */
+.tab svg, .tab img { -webkit-user-drag: none; }
 
 .tab:hover { color: var(--text); background: var(--pane-2); }
 

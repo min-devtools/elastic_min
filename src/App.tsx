@@ -6,6 +6,7 @@ import { Inspector } from "./components/Inspector";
 import { Statusbar } from "./components/Statusbar";
 import { CommandPalette } from "./components/CommandPalette";
 import { Toast } from "./components/Toast";
+import { Dialog } from "./components/Dialog";
 import { PanelResizeHandles } from "./components/ResizeHandles";
 import { WelcomeView } from "./components/views/WelcomeView";
 import { ConnectionView } from "./components/views/ConnectionView";
@@ -19,12 +20,14 @@ import { MappingView } from "./components/views/MappingView";
 import { SettingsView } from "./components/views/SettingsView";
 import { HistoryView } from "./components/views/HistoryView";
 import { IndexStatsView } from "./components/views/IndexStatsView";
+import { SavedQueriesView } from "./components/views/SavedQueriesView";
 import { inspectorAvailable, useApp } from "./store";
 import { runActiveQuery, saveActiveQuery } from "./lib/runQuery";
 import { themeBase } from "./lib/themes";
 import { retintMonaco } from "./lib/monaco";
 import { applyPalette, readBuiltinPalette } from "./lib/themeContract";
 import type { TabDef } from "./lib/types";
+import { Icon } from "./ui/Icon";
 
 function renderView(tab: TabDef, active: boolean) {
   switch (tab.kind) {
@@ -32,7 +35,7 @@ function renderView(tab: TabDef, active: boolean) {
     case "connection": return <ConnectionView key={tab.id} active={active} />;
     case "query": return <QueryView key={tab.id} tabId={tab.id} active={active} />;
     case "quick-query": return <QuickQueryView key={tab.id} active={active} />;
-    case "docs": return <DocsView key={tab.id} active={active} />;
+    case "docs": return <DocsView key={tab.id} tabId={tab.id} active={active} />;
     case "indexes": return <IndexesView key={tab.id} active={active} />;
     case "create-index": return <CreateIndexView key={tab.id} active={active} />;
     case "cluster": return <ClusterView key={tab.id} active={active} />;
@@ -40,6 +43,7 @@ function renderView(tab: TabDef, active: boolean) {
     case "settings": return <SettingsView key={tab.id} active={active} />;
     case "history": return <HistoryView key={tab.id} active={active} />;
     case "index-stats": return <IndexStatsView key={tab.id} active={active} />;
+    case "saved-queries": return <SavedQueriesView key={tab.id} active={active} />;
   }
 }
 
@@ -129,7 +133,7 @@ export default function App() {
       }
       if (mod && key === "d") {
         e.preventDefault();
-        useApp.getState().openTab("docs");
+        useApp.getState().openDocsTab();
       }
       if (mod && e.key === ",") {
         e.preventDefault();
@@ -174,7 +178,7 @@ export default function App() {
         title="Toggle left sidebar (⌘B)"
         onClick={toggleLeft}
       >
-        ◨
+        <Icon name="panel-left" />
       </button>
       <button
         type="button"
@@ -182,10 +186,11 @@ export default function App() {
         title="Toggle right inspector (⌘R)"
         onClick={toggleRight}
       >
-        ◧
+        <Icon name="panel-right" />
       </button>
       <CommandPalette />
       <Toast />
+      <Dialog />
     </div>
   );
 }

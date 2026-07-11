@@ -69,7 +69,7 @@ export async function runQueryTab(tabId: string): Promise<void> {
 }
 
 /** Prompt-save the active query tab into Saved Queries (also renames the tab). */
-export function saveActiveQuery(): void {
+export async function saveActiveQuery(): Promise<void> {
   const s = useApp.getState();
   const tab = s.tabs.find((t) => t.id === s.activeTabId);
   if (tab?.kind !== "query") {
@@ -78,7 +78,13 @@ export function saveActiveQuery(): void {
   }
   const qt = s.queryTabs[tab.id];
   if (!qt) return;
-  const name = window.prompt("Save query as:", tab.title);
+  const name = await s.openDialog({
+    kind: "prompt",
+    title: "Save query",
+    message: "Save query as:",
+    defaultValue: tab.title,
+    confirmLabel: "Save",
+  });
   if (!name?.trim()) return;
   s.saveQuery({ name: name.trim(), method: qt.method, path: qt.path, body: qt.body });
   s.renameTab(tab.id, name.trim());

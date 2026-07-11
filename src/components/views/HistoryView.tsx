@@ -45,7 +45,7 @@ export function HistoryView({ active }: { active: boolean }) {
         </div>
         <span />
         <span style={{ color: "var(--text-3)" }}>
-          Every executed request lands here (max 200). Click to reopen, ▶ to re-run.
+          Every executed request lands here (max 200). Click to reopen, then use Run to execute again.
         </span>
         <ToolButton
           variant="danger"

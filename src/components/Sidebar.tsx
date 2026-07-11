@@ -7,18 +7,20 @@ import { useApp } from "../store";
 import { useActiveConnection, useClusterHealth, useIndices } from "../lib/queries";
 import { formatDocCount } from "../lib/format";
 import type { TabKind } from "../lib/types";
+import { Icon, type IconName } from "../ui/Icon";
 
-const WORKSPACE_NAV: { kind: TabKind; icon: string; iconClass: string; label: string; meta?: string }[] = [
-  { kind: "welcome", icon: "◆", iconClass: "soft-blue", label: "Welcome" },
-  { kind: "query", icon: "⌁", iconClass: "soft-blue", label: "Query Editor", meta: "⌘↵" },
-  { kind: "quick-query", icon: "⌕", iconClass: "soft-green", label: "Quick Query", meta: "mapping" },
-  { kind: "docs", icon: "▤", iconClass: "soft-green", label: "Documents", meta: "⌘D" },
-  { kind: "indexes", icon: "◧", iconClass: "soft-orange", label: "All Indexes" },
-  { kind: "mapping", icon: "⌬", iconClass: "soft-blue", label: "Mapping" },
-  { kind: "create-index", icon: "＋", iconClass: "soft-green", label: "Create Index" },
-  { kind: "cluster", icon: "◌", iconClass: "soft-green", label: "Cluster" },
-  { kind: "history", icon: "↺", iconClass: "soft-orange", label: "Query History" },
-  { kind: "settings", icon: "⚙", iconClass: "soft-orange", label: "Settings", meta: "⌘," },
+const WORKSPACE_NAV: { kind: TabKind; icon: IconName; iconClass: string; label: string; meta?: string }[] = [
+  { kind: "welcome", icon: "sparkles", iconClass: "soft-blue", label: "Welcome" },
+  { kind: "query", icon: "query", iconClass: "soft-blue", label: "Query Editor", meta: "⌘↵" },
+  { kind: "quick-query", icon: "quick-query", iconClass: "soft-green", label: "Quick Query", meta: "mapping" },
+  { kind: "docs", icon: "docs", iconClass: "soft-green", label: "Documents", meta: "⌘D" },
+  { kind: "indexes", icon: "indexes", iconClass: "soft-orange", label: "All Indexes" },
+  { kind: "mapping", icon: "mapping", iconClass: "soft-blue", label: "Mapping" },
+  { kind: "create-index", icon: "folder-plus", iconClass: "soft-green", label: "Create Index" },
+  { kind: "cluster", icon: "cluster", iconClass: "soft-green", label: "Cluster" },
+  { kind: "history", icon: "history", iconClass: "soft-orange", label: "Query History" },
+  { kind: "saved-queries", icon: "save", iconClass: "soft-blue", label: "Saved Queries" },
+  { kind: "settings", icon: "settings", iconClass: "soft-orange", label: "Settings", meta: "⌘," },
 ];
 
 export function Sidebar() {
@@ -33,7 +35,7 @@ export function Sidebar() {
   const {
     connections, activeConnId, setActiveConn, deleteConnection, setEditingConn,
     tabs, activeTabId, openTab, activeIndex, setActiveIndex, showToast,
-    savedQueries, deleteSavedQuery, renameSavedQuery, newQueryTab, history,
+    savedQueries, deleteSavedQuery, renameSavedQuery, newQueryTab, history, openDialog,
   } = useApp();
 
   const activeKind = tabs.find((t) => t.id === activeTabId)?.kind;
@@ -45,7 +47,7 @@ export function Sidebar() {
   const connMenuItems: ContextMenuItem[] = connMenu
     ? [
         {
-          icon: "●",
+          icon: "plug",
           label: "Connect",
           strong: true,
           onClick: () => {
@@ -54,7 +56,7 @@ export function Sidebar() {
           },
         },
         {
-          icon: "✎",
+          icon: "pencil",
           label: "Edit connection",
           onClick: () => {
             setEditingConn(connMenu.id);
@@ -62,7 +64,7 @@ export function Sidebar() {
           },
         },
         {
-          icon: "×",
+          icon: "trash",
           label: "Remove",
           onClick: () => {
             deleteConnection(connMenu.id);
@@ -92,7 +94,7 @@ export function Sidebar() {
               openTab("connection");
             }}
           >
-            <span className="soft-blue">＋</span><span>New Connection</span><Badge>setup</Badge>
+            <Icon name="plus" className="soft-blue" /><span>New Connection</span><Badge>setup</Badge>
           </div>
           {connections.map((c) => (
             <div
@@ -107,9 +109,11 @@ export function Sidebar() {
                 setConnMenu({ x: e.clientX, y: e.clientY, id: c.id });
               }}
             >
-              <span>{c.id === activeConnId ? "●" : "○"}</span>
+              <Icon name="status" className={c.id === activeConnId ? "soft-green" : undefined} />
               <span>{c.name}</span>
-              <Badge>{c.id === activeConnId ? health.data?.status ?? "…" : "idle"}</Badge>
+              <Badge tone={c.id === activeConnId ? health.data?.status ?? "idle" : "idle"}>
+                {c.id === activeConnId ? health.data?.status ?? "connecting…" : "idle"}
+              </Badge>
             </div>
           ))}
         </div>
@@ -122,7 +126,7 @@ export function Sidebar() {
               className={`nav-item ${activeKind === item.kind ? "active" : ""}`}
               onClick={() => openTab(item.kind)}
             >
-              <span className={item.iconClass}>{item.icon}</span>
+              <Icon name={item.icon} className={item.iconClass} />
               <span>{item.label}</span>
               <span>
                 {item.kind === "history"
@@ -151,7 +155,7 @@ export function Sidebar() {
                     setQueryMenu({ x: e.clientX, y: e.clientY, id: sq.id });
                   }}
                 >
-                  <span className="soft-blue">⌘</span>
+                  <Icon name="save" className="soft-blue" />
                   <span>{sq.name}</span>
                   <Badge>{sq.method}</Badge>
                 </div>
@@ -191,10 +195,10 @@ export function Sidebar() {
           <div className="group">
             <div className="group-title"><span>Database objects</span><span /></div>
             <div className="nav-item" onClick={() => openTab("indexes")}>
-              <span>≋</span><span>Aliases</span><span>{aliasCount || ""}</span>
+              <Icon name="database" /><span>Aliases</span><span>{aliasCount || ""}</span>
             </div>
             <div className="nav-item" onClick={() => openTab("cluster")}>
-              <span>◌</span><span>Cluster health</span><span>{health.data?.status ?? ""}</span>
+              <Icon name="cluster" /><span>Cluster health</span><span>{health.data?.status ?? ""}</span>
             </div>
           </div>
         )}
@@ -208,13 +212,13 @@ export function Sidebar() {
           y={indexMenu.y}
           onClose={() => setIndexMenu(null)}
           items={[
-            { icon: "▤", label: "Open Documents", strong: true, onClick: () => openTab("docs") },
+            { icon: "docs", label: "Open Documents", strong: true, onClick: () => openTab("docs") },
             {
-              icon: "⌁", label: "Open in Query", strong: true,
+              icon: "query", label: "Open in Query", strong: true,
               onClick: () => newQueryTab({ path: `/${indexMenu.index}/_search` }),
             },
-            { icon: "⌬", label: "Open Mapping", onClick: () => openTab("mapping") },
-            { icon: "∿", label: "Index stats", onClick: () => openTab("index-stats") },
+            { icon: "mapping", label: "Open Mapping", onClick: () => openTab("mapping") },
+            { icon: "activity", label: "Index stats", onClick: () => openTab("index-stats") },
           ]}
         />
       )}
@@ -225,7 +229,7 @@ export function Sidebar() {
           onClose={() => setQueryMenu(null)}
           items={[
             {
-              icon: "⌁",
+              icon: "query",
               label: "Open in new Query tab",
               strong: true,
               onClick: () => {
@@ -234,16 +238,21 @@ export function Sidebar() {
               },
             },
             {
-              icon: "✎",
+              icon: "pencil",
               label: "Rename",
-              onClick: () => {
+              onClick: async () => {
                 const sq = savedQueries.find((x) => x.id === queryMenu.id);
-                const name = window.prompt("Rename saved query:", sq?.name ?? "");
+                const name = await openDialog({
+                  kind: "prompt",
+                  title: "Rename saved query",
+                  defaultValue: sq?.name ?? "",
+                  confirmLabel: "Rename",
+                });
                 if (name?.trim()) renameSavedQuery(queryMenu.id, name);
               },
             },
             {
-              icon: "×",
+              icon: "trash",
               label: "Delete",
               onClick: () => {
                 deleteSavedQuery(queryMenu.id);

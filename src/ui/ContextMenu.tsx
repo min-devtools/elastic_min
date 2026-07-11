@@ -1,7 +1,8 @@
 import { useEffect, useRef } from "react";
+import { Icon, type IconName } from "./Icon";
 
 export interface ContextMenuItem {
-  icon: string;
+  icon: IconName;
   label: string;
   strong?: boolean;
   onClick: () => void;
@@ -52,7 +53,7 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
             onClose();
           }}
         >
-          <span>{item.icon}</span>
+          <Icon name={item.icon} size={15} />
           {item.strong ? <strong>{item.label}</strong> : <span>{item.label}</span>}
           <span />
         </div>

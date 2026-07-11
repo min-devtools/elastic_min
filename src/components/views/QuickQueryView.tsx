@@ -171,11 +171,12 @@ export function QuickQueryView({ active }: { active: boolean }) {
                 <span>{i === 0 ? "WHERE" : logic.toUpperCase()}</span>
                 <button
                   type="button"
-                  className="condition-remove"
-                  title="Remove condition"
+                className="condition-remove"
+                title="Remove condition"
+                aria-label="Remove condition"
                   onClick={() => setConditions((cs) => cs.filter((x) => x.id !== c.id))}
                 >
-                  ×
+                  <Icon name="x" size={14} />
                 </button>
               </div>
               <Combobox

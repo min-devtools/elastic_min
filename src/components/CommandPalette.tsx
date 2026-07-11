@@ -2,9 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "../store";
 import { useIndices } from "../lib/queries";
 import { runActiveQuery } from "../lib/runQuery";
+import { Icon, type IconName } from "../ui/Icon";
 
 interface Command {
-  icon: string;
+  icon: IconName;
   label: string;
   kbd?: string;
   action: () => void;
@@ -27,40 +28,41 @@ export function CommandPalette() {
 
   const commands = useMemo<Command[]>(() => {
     const base: Command[] = [
-      { icon: "▶", label: "Run current query", kbd: "⌘↵", action: runActiveQuery },
-      { icon: "＋", label: "New query tab", kbd: "⌘N", action: () => app.newQueryTab() },
-      { icon: "⌕", label: "Open Quick Query builder", action: () => app.openTab("quick-query") },
-      { icon: "⎇", label: "New Elasticsearch connection", action: () => { app.setEditingConn(null); app.openTab("connection"); } },
-      { icon: "▤", label: "Open Documents", kbd: "⌘D", action: () => app.openTab("docs") },
-      { icon: "◨", label: "Toggle left sidebar", kbd: "⌘B", action: () => app.toggleLeft() },
-      { icon: "◧", label: "Toggle right inspector", kbd: "⌘R", action: () => app.toggleRight() },
-      { icon: "◧", label: "Open All Indexes", action: () => app.openTab("indexes") },
-      { icon: "＋", label: "Create index", action: () => app.openTab("create-index") },
-      { icon: "◌", label: "Show cluster health", action: () => app.openTab("cluster") },
-      { icon: "⌬", label: "Open Mapping viewer", action: () => app.openTab("mapping") },
-      { icon: "⚙", label: "Open Settings", kbd: "⌘,", action: () => app.openTab("settings") },
-      { icon: "↺", label: "Open Query History", action: () => app.openTab("history") },
-      { icon: "∿", label: "Index stats (active index)", action: () => app.openTab("index-stats") },
-      { icon: "☾", label: "Toggle theme", action: () => app.toggleTheme() },
-      { icon: "⌨", label: "Toggle vim mode", action: () => app.toggleVim() },
+      { icon: "play", label: "Run current query", kbd: "⌘↵", action: runActiveQuery },
+      { icon: "plus", label: "New query tab", kbd: "⌘N", action: () => app.newQueryTab() },
+      { icon: "quick-query", label: "Open Quick Query builder", action: () => app.openTab("quick-query") },
+      { icon: "plug", label: "New Elasticsearch connection", action: () => { app.setEditingConn(null); app.openTab("connection"); } },
+      { icon: "docs", label: "Open Documents", kbd: "⌘D", action: () => app.openTab("docs") },
+      { icon: "panel-left", label: "Toggle left sidebar", kbd: "⌘B", action: () => app.toggleLeft() },
+      { icon: "panel-right", label: "Toggle right inspector", kbd: "⌘R", action: () => app.toggleRight() },
+      { icon: "indexes", label: "Open All Indexes", action: () => app.openTab("indexes") },
+      { icon: "folder-plus", label: "Create index", action: () => app.openTab("create-index") },
+      { icon: "cluster", label: "Show cluster health", action: () => app.openTab("cluster") },
+      { icon: "mapping", label: "Open Mapping viewer", action: () => app.openTab("mapping") },
+      { icon: "settings", label: "Open Settings", kbd: "⌘,", action: () => app.openTab("settings") },
+      { icon: "history", label: "Open Query History", action: () => app.openTab("history") },
+      { icon: "save", label: "Open Saved Queries", action: () => app.openTab("saved-queries") },
+      { icon: "activity", label: "Index stats (active index)", action: () => app.openTab("index-stats") },
+      { icon: "moon", label: "Toggle theme", action: () => app.toggleTheme() },
+      { icon: "keyboard", label: "Toggle vim mode", action: () => app.toggleVim() },
     ];
     for (const sq of app.savedQueries) {
       base.push({
-        icon: "⌘",
+        icon: "save",
         label: `Open saved query: ${sq.name}`,
         action: () => app.newQueryTab({ method: sq.method, path: sq.path, body: sq.body }),
       });
     }
     for (const c of app.connections) {
       base.push({
-        icon: "⎇",
+        icon: "plug",
         label: `Switch connection: ${c.name}`,
         action: () => app.setActiveConn(c.id),
       });
     }
     for (const i of indices.data ?? []) {
       base.push({
-        icon: "◧",
+        icon: "indexes",
         label: `Open index: ${i.index}`,
         action: () => {
           app.setActiveIndex(i.index);
@@ -120,7 +122,7 @@ export function CommandPalette() {
               onMouseEnter={() => setCursor(i)}
               onClick={() => runCommand(cmd)}
             >
-              <span>{cmd.icon}</span>
+              <Icon name={cmd.icon} size={15} />
               <span>{cmd.label}</span>
               {cmd.kbd ? <span className="kbd">{cmd.kbd}</span> : <span />}
             </div>

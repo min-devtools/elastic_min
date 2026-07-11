@@ -15,7 +15,7 @@ import { sortRows, useSort } from "../../lib/useSort";
 export function ResultsPanel({ tabId }: { tabId: string }) {
   const conn = useActiveConnection();
   const qt = useApp((s) => s.queryTabs[tabId]);
-  const { selectDoc, selectedDoc, showToast } = useApp();
+  const { selectDoc, selectedDoc, showToast, openDialog } = useApp();
   const [paths, setPaths] = useState<string[]>([]);
   const [pathInput, setPathInput] = useState("");
   // raw top-level columns by default; normalized JSON-path view is opt-in
@@ -78,7 +78,14 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
 
   const bulkDelete = async () => {
     if (!conn || !hits || selected.size === 0) return;
-    if (!window.confirm(`Delete ${selected.size} document(s) from the cluster? This cannot be undone.`)) return;
+    const ok = await openDialog({
+      kind: "confirm",
+      title: "Delete documents",
+      message: `Delete ${selected.size} document(s) from the cluster? This cannot be undone.`,
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
     const targets = hits.filter((h) => selected.has(h._id));
     const ndjson =
       targets.map((h) => JSON.stringify({ delete: { _index: h._index, _id: h._id } })).join("\n") + "\n";
@@ -194,7 +201,7 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
                           removePath(c);
                         }}
                       >
-                        ×
+                        <Icon name="x" size={13} />
                       </span>
                     )}
                   </SortTh>
@@ -250,16 +257,16 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
         )}
         {!result?.error && !hits && result != null && <JsonView value={result.raw} />}
         {result == null && (
-          <div className="empty-note">Press ▶ Run (⌘↵) to execute this request against the cluster.</div>
+          <div className="empty-note">Press Run (⌘↵) to execute this request against the cluster.</div>
         )}
       </div>
       <div className="result-foot">
         <div className="seg">
-          <ToolButton disabled={safePage === 1} onClick={() => setPage(1)}>First</ToolButton>
-          <ToolButton disabled={safePage === 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>‹ Prev</ToolButton>
+          <ToolButton iconOnly disabled={safePage === 1} title="First page" aria-label="First page" onClick={() => setPage(1)}><Icon name="chevrons-left" /></ToolButton>
+          <ToolButton iconOnly disabled={safePage === 1} title="Previous page" aria-label="Previous page" onClick={() => setPage((p) => Math.max(1, p - 1))}><Icon name="arrow-left" /></ToolButton>
           <Badge>{safePage} / {totalPages}</Badge>
-          <ToolButton disabled={safePage === totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next ›</ToolButton>
-          <ToolButton disabled={safePage === totalPages} onClick={() => setPage(totalPages)}>Last</ToolButton>
+          <ToolButton iconOnly disabled={safePage === totalPages} title="Next page" aria-label="Next page" onClick={() => setPage((p) => Math.min(totalPages, p + 1))}><Icon name="arrow-right" /></ToolButton>
+          <ToolButton iconOnly disabled={safePage === totalPages} title="Last page" aria-label="Last page" onClick={() => setPage(totalPages)}><Icon name="chevrons-right" /></ToolButton>
         </div>
         <div className="seg">
           <span>

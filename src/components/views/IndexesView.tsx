@@ -17,7 +17,7 @@ export function IndexesView({ active }: { active: boolean }) {
   const conn = useActiveConnection();
   const indices = useIndices();
   const queryClient = useQueryClient();
-  const { openTab, setActiveIndex, newQueryTab, showToast } = useApp();
+  const { openTab, setActiveIndex, newQueryTab, showToast, openDialog } = useApp();
   const [filter, setFilter] = useState("");
   const [menu, setMenu] = useState<{ x: number; y: number; index: string } | null>(null);
   const { sort, cycleSort } = useSort();
@@ -42,47 +42,51 @@ export function IndexesView({ active }: { active: boolean }) {
   const menuItems: ContextMenuItem[] = menu
     ? [
         {
-          icon: "⌁", label: "Open in Query", strong: true,
+          icon: "query", label: "Open in Query", strong: true,
           onClick: () => {
             setActiveIndex(menu.index);
             newQueryTab({ path: `/${menu.index}/_search` });
           },
         },
         {
-          icon: "▤", label: "Open Documents", strong: true,
+          icon: "docs", label: "Open Documents", strong: true,
           onClick: () => {
             setActiveIndex(menu.index);
             openTab("docs");
           },
         },
         {
-          icon: "⌬", label: "Open Mapping", strong: true,
+          icon: "mapping", label: "Open Mapping", strong: true,
           onClick: () => {
             setActiveIndex(menu.index);
             openTab("mapping");
           },
         },
         {
-          icon: "∿", label: "Index stats", strong: true,
+          icon: "activity", label: "Index stats", strong: true,
           onClick: () => {
             setActiveIndex(menu.index);
             openTab("index-stats");
           },
         },
         {
-          icon: "⎘", label: "Copy index name",
+          icon: "copy", label: "Copy index name",
           onClick: () => {
             void writeText(menu.index);
             showToast("Copied", `${menu.index} copied to clipboard.`);
           },
         },
         {
-          icon: "×", label: "Delete index…",
-          onClick: () => {
+          icon: "trash", label: "Delete index…",
+          onClick: async () => {
             // type-the-name confirmation — deleting an index is unrecoverable
-            const typed = window.prompt(
-              `This permanently deletes the index and ALL its documents.\nType "${menu.index}" to confirm:`,
-            );
+            const typed = await openDialog({
+              kind: "prompt",
+              title: "Delete index",
+              message: `This permanently deletes "${menu.index}" and ALL its documents.\nType "${menu.index}" to confirm:`,
+              confirmLabel: "Delete",
+              danger: true,
+            });
             if (typed !== menu.index) {
               if (typed !== null) showToast("Not deleted", "Name did not match.", "warn");
               return;

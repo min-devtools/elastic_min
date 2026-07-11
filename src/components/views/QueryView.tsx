@@ -103,16 +103,18 @@ export function QueryView({ tabId, active }: { tabId: string; active: boolean })
           </div>
           <div className="seg">
             <Badge>{jsonValid ? "JSON valid" : "JSON invalid"}</Badge>
-            <ToolButton title="Save query (⌘S)" onClick={saveActiveQuery}>
+            <ToolButton iconOnly title="Save query (⌘S)" aria-label="Save query" onClick={saveActiveQuery}>
               <Icon name="save" />
             </ToolButton>
             <ToolButton
+              iconOnly
               title="Format JSON body"
+              aria-label="Format JSON body"
               onClick={() => {
                 void editorRef.current?.getAction("editor.action.formatDocument")?.run();
               }}
             >
-              <Icon name="code" /> Format
+              <Icon name="code" />
             </ToolButton>
             <span className="progress"><span /></span>
           </div>

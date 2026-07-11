@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useApp } from "../store";
 import { ContextMenu } from "../ui/ContextMenu";
+import { Icon } from "../ui/Icon";
 
 export function TabsBar() {
   const { tabs, activeTabId, activateTab, closeTab, newQueryTab, renameTab, reorderTab } = useApp();
@@ -19,6 +20,9 @@ export function TabsBar() {
     if (editingId) renameTab(editingId, draft);
     setEditingId(null);
   };
+
+  const draggedTabId = (event: React.DragEvent) =>
+    event.dataTransfer.getData("application/x-elasticmin-tab") || dragId;
 
   return (
     <nav className="tabs">
@@ -45,6 +49,7 @@ export function TabsBar() {
           onDragStart={(e) => {
             setDragId(tab.id);
             e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("application/x-elasticmin-tab", tab.id);
           }}
           onDragEnd={() => {
             setDragId(null);
@@ -59,13 +64,14 @@ export function TabsBar() {
           onDragLeave={() => setOverId((o) => (o === tab.id ? null : o))}
           onDrop={(e) => {
             e.preventDefault();
-            if (dragId && dragId !== tab.id) reorderTab(dragId, tab.id);
+            const id = draggedTabId(e);
+            if (id && id !== tab.id) reorderTab(id, tab.id);
             setDragId(null);
             setOverId(null);
           }}
           title={tab.kind === "query" ? "Double-click to rename · right-click for menu" : undefined}
         >
-          <span className={tab.iconClass}>{tab.icon}</span>
+          <Icon name={tab.icon} className={tab.iconClass} />
           {editingId === tab.id ? (
             <input
               ref={inputRef}
@@ -93,7 +99,7 @@ export function TabsBar() {
               closeTab(tab.id);
             }}
           >
-            ×
+            <Icon name="x" size={13} />
           </span>
         </button>
       ))}
@@ -109,12 +115,13 @@ export function TabsBar() {
         }}
         onDrop={(e) => {
           e.preventDefault();
-          if (dragId) reorderTab(dragId, null);
+          const id = draggedTabId(e);
+          if (id) reorderTab(id, null);
           setDragId(null);
           setOverId(null);
         }}
       >
-        <span>＋</span><span>Query</span>
+        <Icon name="plus" /><span>Query</span>
       </button>
       {menu && (
         <ContextMenu
@@ -124,7 +131,7 @@ export function TabsBar() {
           items={[
             ...(tabs.find((t) => t.id === menu.id)?.kind === "query"
               ? [{
-                  icon: "✎",
+                  icon: "pencil" as const,
                   label: "Rename",
                   strong: true,
                   onClick: () => {
@@ -134,9 +141,9 @@ export function TabsBar() {
                   },
                 }]
               : []),
-            { icon: "×", label: "Close (⌘W)", onClick: () => closeTab(menu.id) },
+            { icon: "x" as const, label: "Close (⌘W)", onClick: () => closeTab(menu.id) },
             {
-              icon: "≡",
+              icon: "rows" as const,
               label: "Close others",
               onClick: () => {
                 for (const t of tabs.filter((t) => t.id !== menu.id)) closeTab(t.id);

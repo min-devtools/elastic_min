@@ -143,7 +143,9 @@ export function AiChat() {
         />
         <ToolButton
           variant="primary"
+          iconOnly
           title="Send (Enter)"
+          aria-label="Send"
           disabled={!configured || busy || !input.trim()}
           onClick={() => void send()}
         >

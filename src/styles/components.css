@@ -48,6 +48,12 @@
 
 .tool-btn:disabled { opacity: .4; cursor: default; }
 
+.tool-btn.icon-only {
+  width: 28px;
+  justify-content: center;
+  padding: 0;
+}
+
 .tool-btn.panel-toggle {
   width: 32px;
   justify-content: center;
@@ -122,6 +128,14 @@
   font: 11px/1.2 var(--font-mono);
   white-space: nowrap;
 }
+
+.badge.green { color: var(--green); background: color-mix(in oklab, var(--green), transparent 90%); }
+
+.badge.yellow { color: var(--orange); background: color-mix(in oklab, var(--orange), transparent 90%); }
+
+.badge.red { color: var(--red); background: color-mix(in oklab, var(--red), transparent 90%); }
+
+.badge.idle { color: var(--text-3); }
 
 .seg { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
 
@@ -622,6 +636,22 @@ tbody tr:hover td, tbody tr.selected td { background: color-mix(in oklab, var(--
 }
 
 .diff-code:last-child { border-right: 0; }
+
+.prompt-dialog {
+  width: min(420px, calc(100vw - 80px));
+  background: var(--window);
+  border: 1px solid var(--line-2);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+  animation: in 140ms ease;
+}
+
+.prompt-dialog-msg { color: var(--text-2); font-size: 12px; white-space: pre-line; margin: 0; }
+
+.prompt-dialog-foot { display: flex; justify-content: flex-end; gap: 8px; }
 
 .added { background: color-mix(in oklab, var(--green), transparent 86%); color: var(--text); }
 

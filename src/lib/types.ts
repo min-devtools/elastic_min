@@ -56,13 +56,14 @@ export type TabKind =
   | "mapping"
   | "settings"
   | "history"
-  | "index-stats";
+  | "index-stats"
+  | "saved-queries";
 
 export interface TabDef {
   id: string;
   kind: TabKind;
   title: string;
-  icon: string;
+  icon: IconName;
   iconClass: string;
 }
 
@@ -83,6 +84,10 @@ export interface QueryTabState {
   running: boolean;
 }
 
+export interface DocsTabState {
+  index: string;
+}
+
 export interface SavedQuery {
   id: string;
   name: string;
@@ -101,3 +106,4 @@ export interface HistoryEntry {
   timeMs: number;
   hits: number | null;
 }
+import type { IconName } from "../ui/Icon";

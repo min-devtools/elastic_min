@@ -173,7 +173,7 @@ export function CreateIndexView({ active }: { active: boolean }) {
                 <select value={row.type} onChange={(e) => patchRow(i, { type: e.target.value })}>
                   {FIELD_TYPES.map((t) => <option key={t}>{t}</option>)}
                 </select>
-                <ToolButton title="Remove field" onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))}>
+                <ToolButton iconOnly title="Remove field" aria-label="Remove field" onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))}>
                   <Icon name="x" />
                 </ToolButton>
               </div>

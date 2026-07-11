@@ -31,6 +31,7 @@ export async function initPersistence(): Promise<void> {
       s.tabs !== prev.tabs ||
       s.activeTabId !== prev.activeTabId ||
       s.queryTabs !== prev.queryTabs ||
+      s.docsTabs !== prev.docsTabs ||
       s.activeIndex !== prev.activeIndex
     ) {
       localStorage.setItem(
@@ -46,6 +47,8 @@ export async function initPersistence(): Promise<void> {
               { method: qt.method, path: qt.path, body: qt.body },
             ]),
           ),
+          docsTabCounter: s.docsTabCounter,
+          docsTabs: s.docsTabs,
         }),
       );
     }

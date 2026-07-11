@@ -20,7 +20,7 @@ export function Inspector() {
   const [diffOpen, setDiffOpen] = useState(false);
   const conn = useActiveConnection();
   const queryClient = useQueryClient();
-  const { selectedDoc, selectDoc, focusField, showToast } = useApp();
+  const { selectedDoc, selectDoc, focusField, showToast, openDialog } = useApp();
   const vimStatusRef = useRef<HTMLSpanElement>(null);
 
   // reload editor when another document is selected
@@ -81,7 +81,14 @@ export function Inspector() {
 
   const deleteDoc = async () => {
     if (!conn || !selectedDoc) return;
-    if (!window.confirm(`Delete document ${selectedDoc._id} from ${selectedDoc._index}?`)) return;
+    const ok = await openDialog({
+      kind: "confirm",
+      title: "Delete document",
+      message: `Delete document ${selectedDoc._id} from ${selectedDoc._index}?`,
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await esJson(conn, "DELETE", `/${encodeURIComponent(selectedDoc._index)}/_doc/${encodeURIComponent(selectedDoc._id)}?refresh=true`);
       showToast("Document deleted", `${selectedDoc._id} removed from ${selectedDoc._index}.`);
@@ -171,16 +178,16 @@ export function Inspector() {
           {selectedDoc && (
             <div className="actions">
               <button className="action-btn" onClick={() => copy(selectedDoc._id, "Document ID")}>
-                Copy document ID
+                <Icon name="copy" /> Copy document ID
               </button>
               <button
                 className="action-btn"
                 onClick={() => copy(JSON.stringify(selectedDoc._source, null, 2), "Document JSON")}
               >
-                Copy document JSON
+                <Icon name="copy" /> Copy document JSON
               </button>
               <button className="action-btn" style={{ color: "var(--red)" }} onClick={deleteDoc}>
-                Delete document...
+                <Icon name="trash" /> Delete document...
               </button>
             </div>
           )}
