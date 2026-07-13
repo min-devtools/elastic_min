@@ -17,6 +17,13 @@ npm run tauri build -- --bundles app
 
 [[ -d "$APP_PATH" ]] || { echo "Error: bundle was not created at $APP_PATH" >&2; exit 1; }
 
+# tauri build only linker-signs the binary; it does not seal Resources/Info.plist.
+# Without a full ad-hoc re-sign here, the bundle carries an inconsistent signature
+# (Sealed Resources=none while flags claim resources are present) and macOS refuses
+# to launch it as "damaged" on other machines, even after clearing quarantine.
+codesign --force --deep --sign - "$APP_PATH"
+codesign --verify --deep --strict "$APP_PATH"
+
 printf '\nBuilt: %s\n\nOn the receiving Mac:\n' "$APP_PATH"
 printf '  sudo xattr -rd com.apple.quarantine /Applications/ElasticMin.app\n'
 printf '  open /Applications/ElasticMin.app\n'

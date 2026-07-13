@@ -20,6 +20,7 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
   const [pathInput, setPathInput] = useState("");
   // raw top-level columns by default; normalized JSON-path view is opt-in
   const [normalized, setNormalized] = useState(false);
+  const [filter, setFilter] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -36,10 +37,16 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
     return [...cols]; // all columns — the grid scrolls horizontally
   }, [hits]);
 
+  const filteredHits = useMemo(() => {
+    const query = filter.trim().toLowerCase();
+    if (!query || !hits) return hits;
+    return hits.filter((hit) => `${hit._id} ${JSON.stringify(hit._source)}`.toLowerCase().includes(query));
+  }, [hits, filter]);
+
   // client-side sort over the loaded hits
   const sortedHits = useMemo(
-    () => (hits ? sortRows(hits, sort, (h, col) => (col === "_id" ? h._id : getPath(h._source, col))) : hits),
-    [hits, sort],
+    () => (filteredHits ? sortRows(filteredHits, sort, (h, col) => (col === "_id" ? h._id : getPath(h._source, col))) : filteredHits),
+    [filteredHits, sort],
   );
 
   const total = sortedHits?.length ?? 0;
@@ -149,6 +156,15 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
         <div className="path-preview">
           <input
             className="path-input"
+            value={filter}
+            placeholder="Search loaded results"
+            onChange={(e) => {
+              setFilter(e.target.value);
+              setPage(1);
+            }}
+          />
+          <input
+            className="path-input"
             value={pathInput}
             placeholder="Add JSON path, e.g. payment.provider or fulfillment.state"
             onChange={(e) => setPathInput(e.target.value)}
@@ -229,12 +245,10 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
                     return (
                       <td
                         key={c}
-                        title="Click: inspect · double-click: copy value"
+                        title="Click: copy value"
                         onClick={(e) => {
                           e.stopPropagation();
                           selectDoc(h, c);
-                        }}
-                        onDoubleClick={() => {
                           void writeText(formatValue(value));
                           showToast("Copied", `${c} value copied.`);
                         }}
