@@ -23,8 +23,8 @@
   --row-alt: rgba(255, 255, 255, 0.04);
   --glass: rgba(26, 28, 34, 0.78);
   --shadow: 0 18px 60px color-mix(in oklab, var(--surface-app), transparent 45%);
-  --left-w: 258px;
-  --right-w: 328px;
+  --left-w: 16.125rem;
+  --right-w: 20.5rem;
   --query-top: 48vh;
   --editor-bg: #0d0f14;
   --editor-fg: #d7dce5;
@@ -60,20 +60,27 @@
 }
 
 body.light {
-  --app-bg: #e8e9ed;
-  --window: #f7f7f8;
+  --accent: #8b5cf6;
+  --app-bg: #f9f8fa;
+  --window: #f9f8fa;
   --pane: #ffffff;
-  --pane-2: #f1f2f4;
-  --pane-3: #e8eaee;
-  --line: rgba(0, 0, 0, 0.09);
-  --line-2: rgba(0, 0, 0, 0.14);
-  --text: #101217;
-  --text-2: #3e4550;
-  --text-3: #626975;
-  --row: rgba(0, 0, 0, 0.015);
-  --row-alt: rgba(0, 0, 0, 0.035);
+  --pane-2: #f0ecf4;
+  --pane-3: #efebf2;
+  --line: #efebf2;
+  --line-2: #e3ddea;
+  --text: #3b2e4c;
+  --text-2: #8c7c9e;
+  --text-3: #b1a6bd;
+  --blue: #8b5cf6;
+  --blue-2: #7150c9;
+  --green: #10b981;
+  --orange: #d97706;
+  --red: #f43f5e;
+  --purple: #8b5cf6;
+  --row: #ffffff;
+  --row-alt: #f9f8fa;
   --glass: rgba(255, 255, 255, 0.78);
-  --shadow: 0 18px 50px color-mix(in oklab, var(--surface-app), transparent 78%);
-  --editor-bg: #fbfbfc;
-  --editor-fg: #1c2430;
+  --shadow: none;
+  --editor-bg: #ffffff;
+  --editor-fg: #3b2e4c;
 }

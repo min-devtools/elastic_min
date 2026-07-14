@@ -56,7 +56,7 @@ function FontSelect({
 export function SettingsView({ active }: { active: boolean }) {
   const {
     theme, setTheme, compact, toggleCompact, vimMode, toggleVim,
-    editorFontSize, setEditorFontSize, uiFont, setUiFont, editorFont, setEditorFont,
+    editorFontSize, setEditorFontSize, uiFontSize, setUiFontSize, uiFont, setUiFont, editorFont, setEditorFont,
     aiProvider, setAiProvider, showToast,
   } = useApp();
   const fonts = useSystemFonts();
@@ -168,6 +168,23 @@ export function SettingsView({ active }: { active: boolean }) {
                 max={22}
                 value={editorFontSize}
                 onChange={(e) => setEditorFontSize(Number(e.target.value))}
+              />
+            }
+          />
+          <Row
+            icon="pencil"
+            title="UI font size"
+            desc="12 – 24 px, whole app. ⌘+ / ⌘- to adjust (0.5 per press)."
+            control={
+              <input
+                type="number"
+                className="settings-select"
+                style={{ width: 72 }}
+                min={12}
+                max={24}
+                step={0.5}
+                value={uiFontSize}
+                onChange={(e) => setUiFontSize(Number(e.target.value))}
               />
             }
           />

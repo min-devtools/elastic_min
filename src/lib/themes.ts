@@ -2,8 +2,8 @@
 export interface ThemeDef { id: string; label: string; base: "dark" | "light"; }
 
 export const THEMES: ThemeDef[] = [
-  { id: "dark", label: "ElasticMin Dark (default)", base: "dark" },
-  { id: "light", label: "ElasticMin Light", base: "light" },
+  { id: "dark", label: "Min Dark", base: "dark" },
+  { id: "light", label: "Min Light", base: "light" },
   { id: "aura-dark", label: "Aura Dark", base: "dark" },
   { id: "ayu-mirage", label: "Ayu Mirage", base: "dark" },
   { id: "bearded-altica", label: "Bearded Altica", base: "dark" },

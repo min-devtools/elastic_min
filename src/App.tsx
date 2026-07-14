@@ -57,6 +57,7 @@ export default function App() {
   const running = queryTabs[activeTabId]?.running ?? false;
   const uiFont = useApp((s) => s.uiFont);
   const editorFont = useApp((s) => s.editorFont);
+  const uiFontSize = useApp((s) => s.uiFontSize);
 
   // custom fonts override the design token stacks
   useEffect(() => {
@@ -66,6 +67,11 @@ export default function App() {
     if (editorFont) st.setProperty("--font-mono", `"${editorFont}", ui-monospace, Menlo, monospace`);
     else st.removeProperty("--font-mono");
   }, [uiFont, editorFont]);
+
+  // app-wide UI scale — rem-based CSS reads this as its 1rem
+  useEffect(() => {
+    document.documentElement.style.fontSize = `${uiFontSize}px`;
+  }, [uiFontSize]);
 
   // mirror UI state onto <body> so the ported design CSS keeps working
   useEffect(() => {
@@ -105,6 +111,9 @@ export default function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // Monaco's own addCommand bindings (e.g. ⌘↵ in the query editor) call preventDefault
+      // before this bubbles to document — skip so we don't double-fire the same shortcut.
+      if (e.defaultPrevented) return;
       const mod = e.metaKey || e.ctrlKey;
       const key = e.key.toLowerCase();
       if (mod && key === "k") {
@@ -152,6 +161,17 @@ export default function App() {
           e.preventDefault();
           s.activateTab(tab.id);
         }
+      }
+      // ⌘+/⌘- — app-wide UI font size, 0.5px per press
+      if (mod && (e.key === "=" || e.key === "+")) {
+        e.preventDefault();
+        const s = useApp.getState();
+        s.setUiFontSize(s.uiFontSize + 0.5);
+      }
+      if (mod && (e.key === "-" || e.key === "_")) {
+        e.preventDefault();
+        const s = useApp.getState();
+        s.setUiFontSize(s.uiFontSize - 0.5);
       }
       if (e.key === "Escape") setCommandOpen(false);
     };

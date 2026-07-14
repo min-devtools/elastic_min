@@ -146,6 +146,8 @@ interface AppState {
   compact: boolean;
   vimMode: boolean;
   editorFontSize: number;
+  /** app-wide UI font size in px (1rem base) */
+  uiFontSize: number;
   /** OpenAI-compatible provider for the AI query assistant */
   aiProvider: { endpoint: string; apiKey: string; model: string };
   /** UI font family ("" = design default) */
@@ -191,6 +193,7 @@ interface AppState {
   toggleCompact: () => void;
   toggleVim: () => void;
   setEditorFontSize: (size: number) => void;
+  setUiFontSize: (size: number) => void;
   setUiFont: (font: string) => void;
   setAiProvider: (p: Partial<{ endpoint: string; apiKey: string; model: string }>) => void;
   setEditorFont: (font: string) => void;
@@ -236,6 +239,7 @@ export const useApp = create<AppState>((set, get) => ({
   compact: localStorage.getItem("elasticmin:compact") === "1",
   vimMode: localStorage.getItem("elasticmin:vim") === "1",
   editorFontSize: Number(localStorage.getItem("elasticmin:font-size")) || 13,
+  uiFontSize: Number(localStorage.getItem("elasticmin:ui-font-size")) || 16,
   aiProvider: (() => {
     try {
       return {
@@ -476,6 +480,11 @@ export const useApp = create<AppState>((set, get) => ({
     const clamped = Math.min(22, Math.max(10, size || 13));
     localStorage.setItem("elasticmin:font-size", String(clamped));
     set({ editorFontSize: clamped });
+  },
+  setUiFontSize: (size) => {
+    const clamped = Math.min(24, Math.max(12, size || 16));
+    localStorage.setItem("elasticmin:ui-font-size", String(clamped));
+    set({ uiFontSize: clamped });
   },
   setAiProvider: (p) =>
     set((s) => {
