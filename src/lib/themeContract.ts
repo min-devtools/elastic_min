@@ -41,13 +41,15 @@ export function readBuiltinPalette(style: CSSStyleDeclaration): ThemePalette {
     border: { default: value(style, "--line"), strong: value(style, "--line-2") },
     accent: { primary: value(style, "--blue"), secondary: value(style, "--blue-2"), focus: value(style, "--blue") },
     status: { success: value(style, "--green"), warning: value(style, "--orange"), danger: value(style, "--red"), info: value(style, "--blue-2") },
+    // Read --syntax-* (tokens.css maps these to --blue/--green/etc by default,
+    // but body.light overrides them with contrast-safe colors on its white editor).
     syntax: {
-      key: value(style, "--blue"),
-      string: value(style, "--green"),
-      number: value(style, "--blue-2"),
-      boolean: value(style, "--purple"),
-      null: value(style, "--red"),
-      punctuation: value(style, "--text-3"),
+      key: value(style, "--syntax-key") || value(style, "--blue"),
+      string: value(style, "--syntax-string") || value(style, "--green"),
+      number: value(style, "--syntax-number") || value(style, "--blue-2"),
+      boolean: value(style, "--syntax-boolean") || value(style, "--purple"),
+      null: value(style, "--syntax-null") || value(style, "--red"),
+      punctuation: value(style, "--syntax-punctuation") || value(style, "--text-3"),
     },
   };
 }

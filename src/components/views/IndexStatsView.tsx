@@ -60,7 +60,7 @@ export function IndexStatsView({ active }: { active: boolean }) {
     <section className={`content cluster-view ${active ? "active" : ""}`}>
       <div className="cluster-main">
         <div className="seg" style={{ marginBottom: 14, gap: 10 }}>
-          <strong style={{ fontSize: 15 }}>{index || "no index selected"}</strong>
+          <strong style={{ fontSize: "1.1538rem" }}>{index || "no index selected"}</strong>
           {info && <HealthPill health={info.health} />}
           {info?.aliases.length ? <Badge>aliases: {info.aliases.join(", ")}</Badge> : null}
           <Badge>{stats.isFetching ? "refreshing…" : "live · 10s"}</Badge>

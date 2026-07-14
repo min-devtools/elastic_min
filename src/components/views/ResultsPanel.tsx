@@ -212,6 +212,7 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
                       <span
                         className="th-remove"
                         title="Remove column"
+                        aria-label="Remove column"
                         onClick={(e) => {
                           e.stopPropagation();
                           removePath(c);

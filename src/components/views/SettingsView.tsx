@@ -174,14 +174,14 @@ export function SettingsView({ active }: { active: boolean }) {
           <Row
             icon="pencil"
             title="UI font size"
-            desc="12 – 24 px, whole app. ⌘+ / ⌘- to adjust (0.5 per press)."
+            desc="10 – 20 px, whole app. ⌘+ / ⌘- to adjust (0.5 per press)."
             control={
               <input
                 type="number"
                 className="settings-select"
                 style={{ width: 72 }}
-                min={12}
-                max={24}
+                min={10}
+                max={20}
                 step={0.5}
                 value={uiFontSize}
                 onChange={(e) => setUiFontSize(Number(e.target.value))}

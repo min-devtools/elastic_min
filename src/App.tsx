@@ -61,16 +61,14 @@ export default function App() {
 
   // custom fonts override the design token stacks
   useEffect(() => {
-    const st = document.body.style;
-    if (uiFont) st.setProperty("--font-body", `"${uiFont}", system-ui, sans-serif`);
-    else st.removeProperty("--font-body");
-    if (editorFont) st.setProperty("--font-mono", `"${editorFont}", ui-monospace, Menlo, monospace`);
-    else st.removeProperty("--font-mono");
+    const st = document.documentElement.style;
+    st.setProperty("--font-body", uiFont ? `"${uiFont}", var(--font-body-default)` : "var(--font-body-default)");
+    st.setProperty("--font-mono", editorFont ? `"${editorFont}", var(--font-mono-default)` : "var(--font-mono-default)");
   }, [uiFont, editorFont]);
 
-  // app-wide UI scale — rem-based CSS reads this as its 1rem
+  // app-wide UI scale — base.css html rule reads this as its font-size
   useEffect(() => {
-    document.documentElement.style.fontSize = `${uiFontSize}px`;
+    document.documentElement.style.setProperty("--ui-font-size", `${uiFontSize}px`);
   }, [uiFontSize]);
 
   // mirror UI state onto <body> so the ported design CSS keeps working
@@ -196,6 +194,7 @@ export default function App() {
         type="button"
         className={`tool-btn panel-toggle panel-corner left ${leftCollapsed ? "" : "active"}`}
         title="Toggle left sidebar (⌘B)"
+        aria-label="Toggle left sidebar"
         onClick={toggleLeft}
       >
         <Icon name="panel-left" />
@@ -204,6 +203,7 @@ export default function App() {
         type="button"
         className={`tool-btn panel-toggle panel-corner right ${rightCollapsed || !inspectorOk ? "" : "active"}`}
         title="Toggle right inspector (⌘R)"
+        aria-label="Toggle right inspector"
         onClick={toggleRight}
       >
         <Icon name="panel-right" />

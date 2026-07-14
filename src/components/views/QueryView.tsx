@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import Editor, { type OnMount } from "@monaco-editor/react";
 import { initVimMode } from "monaco-vim";
 import { ToolButton } from "../../ui/ToolButton";
-import { Badge } from "../../ui/Badge";
 import { StatusDot } from "../../ui/StatusDot";
 import { Icon } from "../../ui/Icon";
 import { useApp } from "../../store";
@@ -26,6 +25,7 @@ export function QueryView({ tabId, active }: { tabId: string; active: boolean })
   const editorFont = useApp((s) => s.editorFont);
   const qt = useApp((s) => s.queryTabs[tabId]);
   const updateQueryTab = useApp((s) => s.updateQueryTab);
+  const showToast = useApp((s) => s.showToast);
   const [cursor, setCursor] = useState({ line: 1, col: 1 });
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
   const activeIndex = useApp((s) => s.activeIndex);
@@ -65,6 +65,23 @@ export function QueryView({ tabId, active }: { tabId: string; active: boolean })
     jsonValid = false;
   }
 
+  // same JSON tools as requests_min's JsonEditor — shared .json-editor-tools chrome
+  const transform = (pretty: boolean) => {
+    try {
+      updateQueryTab(tabId, { body: JSON.stringify(JSON.parse(qt.body), null, pretty ? 2 : undefined) });
+    } catch (error) {
+      showToast("Invalid JSON", String(error), "err");
+    }
+  };
+  const validate = () => {
+    try {
+      JSON.parse(qt.body);
+      showToast("JSON valid", "Ready to run.");
+    } catch (error) {
+      showToast("Invalid JSON", String(error), "err");
+    }
+  };
+
   const onMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
     editor.onDidChangeCursorPosition((e) => {
@@ -102,24 +119,20 @@ export function QueryView({ tabId, active }: { tabId: string; active: boolean })
             />
           </div>
           <div className="seg">
-            <Badge>{jsonValid ? "JSON valid" : "JSON invalid"}</Badge>
             <ToolButton iconOnly title="Save query (⌘S)" aria-label="Save query" onClick={saveActiveQuery}>
               <Icon name="save" />
-            </ToolButton>
-            <ToolButton
-              iconOnly
-              title="Format JSON body"
-              aria-label="Format JSON body"
-              onClick={() => {
-                void editorRef.current?.getAction("editor.action.formatDocument")?.run();
-              }}
-            >
-              <Icon name="code" />
             </ToolButton>
             <span className="progress"><span /></span>
           </div>
         </div>
-        <div className="editor-host">
+        <div className="editor-host json-editor-shell has-json-tools">
+          <div className="json-editor-tools">
+            <span className={jsonValid ? "valid" : "invalid"}>JSON {jsonValid ? "valid" : "invalid"}</span>
+            <span />
+            <button type="button" onClick={() => transform(true)} title="Format" aria-label="Format"><Icon name="wand" size={14} /></button>
+            <button type="button" onClick={() => transform(false)} title="Minify" aria-label="Minify"><Icon name="minify" size={14} /></button>
+            <button type="button" onClick={validate} title="Validate" aria-label="Validate"><Icon name="check" size={14} /></button>
+          </div>
           <Editor
             language="json"
             theme={MONACO_THEME}

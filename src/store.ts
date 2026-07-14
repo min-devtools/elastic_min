@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { themeBase } from "./lib/themes";
+import { isThemeId, themeBase } from "./lib/themes";
+import { clampFontSize, DEFAULT_FONT_SIZE } from "./lib/fontScale";
 import type {
   Connection,
   DocsTabState,
@@ -141,7 +142,7 @@ interface AppState {
   /** connection being edited in the Connection tab (null = new draft) */
   editingConnId: string | null;
 
-  /** theme id from lib/themes (e.g. "dark", "light", "tokyo-night") */
+  /** theme id from lib/themes ("default-dark" = Bearded Arc, or "light") */
   theme: string;
   compact: boolean;
   vimMode: boolean;
@@ -235,11 +236,15 @@ export const useApp = create<AppState>((set, get) => ({
   focusField: null,
   editingConnId: null,
 
-  theme: localStorage.getItem("elasticmin:theme") || "dark",
+  // default = Bearded Arc (shared with requests_min); removed/invalid stored themes fall back to it
+  theme: (() => {
+    const stored = localStorage.getItem("elasticmin:theme-v2") ?? localStorage.getItem("elasticmin:theme");
+    return stored && isThemeId(stored) ? stored : "default-dark";
+  })(),
   compact: localStorage.getItem("elasticmin:compact") === "1",
   vimMode: localStorage.getItem("elasticmin:vim") === "1",
   editorFontSize: Number(localStorage.getItem("elasticmin:font-size")) || 13,
-  uiFontSize: Number(localStorage.getItem("elasticmin:ui-font-size")) || 16,
+  uiFontSize: clampFontSize(Number(localStorage.getItem("elasticmin:ui-font-size")) || DEFAULT_FONT_SIZE),
   aiProvider: (() => {
     try {
       return {
@@ -455,7 +460,7 @@ export const useApp = create<AppState>((set, get) => ({
   selectDoc: (doc, focusField = null) => set({ selectedDoc: doc, focusField, rightCollapsed: doc === null }),
   setEditingConn: (id) => set({ editingConnId: id }),
   setTheme: (id) => {
-    localStorage.setItem("elasticmin:theme", id);
+    localStorage.setItem("elasticmin:theme-v2", id);
     set({ theme: id });
   },
 
@@ -463,7 +468,7 @@ export const useApp = create<AppState>((set, get) => ({
     set((s) => {
       // flip between light/dark base regardless of the current custom theme
       const theme = themeBase(s.theme) === "dark" ? "light" : "dark";
-      localStorage.setItem("elasticmin:theme", theme);
+      localStorage.setItem("elasticmin:theme-v2", theme);
       return { theme };
     }),
   toggleCompact: () =>
@@ -482,7 +487,7 @@ export const useApp = create<AppState>((set, get) => ({
     set({ editorFontSize: clamped });
   },
   setUiFontSize: (size) => {
-    const clamped = Math.min(24, Math.max(12, size || 16));
+    const clamped = clampFontSize(size || DEFAULT_FONT_SIZE);
     localStorage.setItem("elasticmin:ui-font-size", String(clamped));
     set({ uiFontSize: clamped });
   },

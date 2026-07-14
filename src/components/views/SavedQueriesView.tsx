@@ -50,6 +50,7 @@ export function SavedQueriesView({ active }: { active: boolean }) {
                 <td onClick={(e) => e.stopPropagation()}>
                   <ToolButton
                     title="Rename"
+                    aria-label="Rename saved query"
                     onClick={async () => {
                       const name = await openDialog({
                         kind: "prompt",
@@ -64,6 +65,7 @@ export function SavedQueriesView({ active }: { active: boolean }) {
                   </ToolButton>
                   <ToolButton
                     title="Delete"
+                    aria-label="Delete saved query"
                     onClick={() => {
                       deleteSavedQuery(q.id);
                       showToast("Saved query deleted", "Removed from this workspace.");

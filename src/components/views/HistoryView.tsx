@@ -85,7 +85,7 @@ export function HistoryView({ active }: { active: boolean }) {
                 <td><span className="cell-date">{e.timeMs}ms</span></td>
                 <td>{e.hits ?? "—"}</td>
                 <td onClick={(ev) => ev.stopPropagation()}>
-                  <ToolButton title="Re-run now" onClick={() => reopen(e, true)}>
+                  <ToolButton title="Re-run now" aria-label="Re-run query now" onClick={() => reopen(e, true)}>
                     <Icon name="play" />
                   </ToolButton>
                 </td>
