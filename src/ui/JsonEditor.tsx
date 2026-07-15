@@ -6,17 +6,19 @@ import { useApp } from "../store";
 
 interface Props {
   value: string;
-  onChange: (v: string) => void;
+  onChange?: (v: string) => void;
   /** element the vim statusbar renders into (mode indicator) */
   vimStatusRef?: React.RefObject<HTMLElement>;
   fontSize?: number;
   lineNumbers?: boolean;
+  /** read-only viewer (e.g. query results) — no editing, no vim */
+  readOnly?: boolean;
   /** dotted field path to reveal + highlight (e.g. "customer.email") */
   highlightPath?: string | null;
 }
 
 /** Compact Monaco JSON editor — theme/font/vim follow app settings. */
-export function JsonEditor({ value, onChange, vimStatusRef, fontSize, lineNumbers = false, highlightPath }: Props) {
+export function JsonEditor({ value, onChange, vimStatusRef, fontSize, lineNumbers = false, readOnly = false, highlightPath }: Props) {
   const vimMode = useApp((s) => s.vimMode);
   const editorFont = useApp((s) => s.editorFont);
   const editorFontSize = useApp((s) => s.editorFontSize);
@@ -54,6 +56,7 @@ export function JsonEditor({ value, onChange, vimStatusRef, fontSize, lineNumber
   }, [highlightPath, value, mounted]);
 
   useEffect(() => {
+    if (readOnly) return;
     const editor = editorRef.current;
     if (vimMode && editor && !vimRef.current) {
       vimRef.current = initVimMode(editor, vimStatusRef?.current ?? null);
@@ -72,7 +75,7 @@ export function JsonEditor({ value, onChange, vimStatusRef, fontSize, lineNumber
   const onMount: OnMount = (editor) => {
     editorRef.current = editor;
     setMounted(true);
-    if (useApp.getState().vimMode && !vimRef.current) {
+    if (!readOnly && useApp.getState().vimMode && !vimRef.current) {
       vimRef.current = initVimMode(editor, vimStatusRef?.current ?? null);
     }
   };
@@ -82,9 +85,11 @@ export function JsonEditor({ value, onChange, vimStatusRef, fontSize, lineNumber
       language="json"
       theme={MONACO_THEME}
       value={value}
-      onChange={(v) => onChange(v ?? "")}
+      onChange={(v) => onChange?.(v ?? "")}
       onMount={onMount}
       options={{
+        readOnly,
+        domReadOnly: readOnly,
         minimap: { enabled: false },
         fontSize: size,
         lineHeight: Math.round(size * 1.65),
@@ -97,6 +102,7 @@ export function JsonEditor({ value, onChange, vimStatusRef, fontSize, lineNumber
         lineNumbers: lineNumbers ? "on" : "off",
         glyphMargin: false,
         folding: true,
+        stickyScroll: { enabled: false },
         lineDecorationsWidth: 6,
         renderLineHighlight: "none",
         overviewRulerLanes: 0,

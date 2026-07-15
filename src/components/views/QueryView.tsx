@@ -119,11 +119,21 @@ export function QueryView({ tabId, active }: { tabId: string; active: boolean })
             />
           </div>
           <div className="seg">
+            <ToolButton
+              variant="primary"
+              title="Run request (⌘↵)"
+              aria-label="Run request"
+              disabled={qt.running}
+              onClick={() => void runQueryTab(tabId)}
+            >
+              <Icon name="play" /> {qt.running ? "Running…" : "Run"}
+            </ToolButton>
             <ToolButton iconOnly title="Save query (⌘S)" aria-label="Save query" onClick={saveActiveQuery}>
               <Icon name="save" />
             </ToolButton>
-            <span className="progress"><span /></span>
           </div>
+          {/* pinned to the bottom edge of the head row; overlay, never a layout child (see .editor-head) */}
+          <div className={`req-progress ${qt.running ? "on" : ""}`}><span /></div>
         </div>
         <div className="editor-host json-editor-shell has-json-tools">
           <div className="json-editor-tools">

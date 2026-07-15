@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { ToolButton } from "../../ui/ToolButton";
 import { Badge } from "../../ui/Badge";
-import { JsonView } from "../../ui/JsonView";
+import { JsonResponseViewer } from "../../ui/JsonResponseViewer";
 import { Icon } from "../../ui/Icon";
 import { SortTh } from "../../ui/SortTh";
 import { useApp } from "../../store";
@@ -29,6 +29,12 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
 
   const result = qt?.result ?? null;
   const hits = result?.hits ?? null;
+
+  // same Monaco read-only viewer as the right dock / requests_min response pane
+  const rawJson = useMemo(
+    () => (typeof result?.raw === "string" ? result.raw : JSON.stringify(result?.raw ?? null, null, 2)),
+    [result?.raw],
+  );
 
   const rawColumns = useMemo(() => {
     const cols = new Set<string>();
@@ -107,12 +113,6 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
     }
   };
 
-  const copyNdjson = async () => {
-    if (!hits?.length) return;
-    await writeText(hits.map((h) => JSON.stringify(h._source)).join("\n"));
-    showToast("Copied NDJSON", `${hits.length} documents copied to clipboard.`);
-  };
-
   const meta = result
     ? result.error
       ? `error · ${result.error.slice(0, 80)}`
@@ -150,13 +150,6 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
               onClick={() => setView((current) => (current === "table" ? "json" : "table"))}
             >
               <Icon name={view === "table" ? "braces" : "table"} /> {view === "table" ? "JSON" : "Table"}
-            </ToolButton>
-            <ToolButton
-              title="Copy all hits as NDJSON to clipboard"
-              disabled={!hits?.length}
-              onClick={() => void copyNdjson()}
-            >
-              <Icon name="copy" /> NDJSON
             </ToolButton>
           </div>
         </div>
@@ -277,7 +270,11 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
             </tbody>
           </table>
         )}
-        {!result?.error && result != null && (view === "json" || !hits) && <JsonView value={result.raw} />}
+        {!result?.error && result != null && (view === "json" || !hits) && (
+          <div className="result-editor-host">
+            <JsonResponseViewer value={rawJson} />
+          </div>
+        )}
         {result == null && (
           <div className="empty-note">Press Run (⌘↵) to execute this request against the cluster.</div>
         )}

@@ -66,8 +66,8 @@ export function SettingsView({ active }: { active: boolean }) {
     <section className={`content settings-view ${active ? "active" : ""}`}>
       <div className="settings-shell">
         <div className="settings-header">
-          <div className="create-kicker">Workspace settings</div>
-          <h2>Appearance, fonts and editor behavior</h2>
+          <h2>Settings</h2>
+          <p style={{ margin: 0, color: "var(--text-3)", fontSize: "0.9231rem" }}>Appearance, fonts, editor behavior, and keyboard shortcuts for this workspace.</p>
         </div>
 
         <div className="settings-card">
@@ -104,7 +104,7 @@ export function SettingsView({ active }: { active: boolean }) {
             }
           />
           <Row
-            icon="sun"
+            icon="rows"
             title="UI font"
             desc={`Interface font, loaded from this Mac (${fontList.length || "…"} families).`}
             control={
@@ -140,7 +140,7 @@ export function SettingsView({ active }: { active: boolean }) {
             }
           />
           <Row
-            icon="code"
+            icon="braces"
             title="Editor font"
             desc="Monospace recommended. Applies to the query editor and JSON views."
             control={
@@ -193,7 +193,7 @@ export function SettingsView({ active }: { active: boolean }) {
         <div className="settings-card">
           <h3>AI Provider (OpenAI-compatible)</h3>
           <Row
-            icon="zap"
+            icon="globe"
             title="Endpoint"
             desc="Base URL of the API, e.g. https://api.openai.com/v1 — requests go to {endpoint}/chat/completions."
             control={
@@ -207,7 +207,7 @@ export function SettingsView({ active }: { active: boolean }) {
             }
           />
           <Row
-            icon="keyboard"
+            icon="key"
             title="API key"
             desc="Sent as Bearer token. Stored locally on this Mac."
             control={
@@ -222,7 +222,7 @@ export function SettingsView({ active }: { active: boolean }) {
             }
           />
           <Row
-            icon="code"
+            icon="braces"
             title="Model"
             desc="Any chat model the endpoint serves, e.g. gpt-4o-mini, claude-sonnet-5, llama3."
             control={
@@ -281,10 +281,11 @@ export function SettingsView({ active }: { active: boolean }) {
           <button
             type="button"
             className="settings-github"
-            onClick={() => openUrl("https://github.com/ngthminhdev/elastic_min")}
+            onClick={() => openUrl("https://github.com/min-devtools/elastic_min")}
           >
             <Icon name="github" /> View on GitHub
           </button>
+          <strong>ElasticMin</strong>
           <button
             type="button"
             className="settings-credit-link"
