@@ -147,7 +147,7 @@ export function SettingsView({ active }: { active: boolean }) {
               <FontSelect
                 value={editorFont}
                 fonts={fontList}
-                placeholder="Berkeley Mono (default)"
+                placeholder="Google Sans Code (default)"
                 onChange={(v) => {
                   setEditorFont(v);
                   showToast("Editor font", v ? `Switched to ${v}.` : "Reset to design default.");

@@ -25,7 +25,7 @@ export function JsonEditor({ value, onChange, vimStatusRef, fontSize, lineNumber
   const decoRef = useRef<string[]>([]);
   const [mounted, setMounted] = useState(false);
 
-  const size = fontSize ?? Math.min(editorFontSize, 13);
+  const size = fontSize ?? editorFontSize;
 
   // reveal + highlight the line of the clicked field (walk dotted path segments)
   useEffect(() => {
@@ -90,7 +90,7 @@ export function JsonEditor({ value, onChange, vimStatusRef, fontSize, lineNumber
         lineHeight: Math.round(size * 1.65),
         fontFamily: editorFont
           ? `"${editorFont}", ui-monospace, Menlo, monospace`
-          : '"Berkeley Mono", ui-monospace, Menlo, Consolas, monospace',
+          : '"Google Sans Code", "Berkeley Mono", ui-monospace, Menlo, Consolas, monospace',
         scrollBeyondLastLine: false,
         automaticLayout: true,
         tabSize: 2,

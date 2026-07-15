@@ -145,7 +145,7 @@ export function QueryView({ tabId, active }: { tabId: string; active: boolean })
               lineHeight: Math.round(editorFontSize * 1.6),
               fontFamily: editorFont
                 ? `"${editorFont}", ui-monospace, Menlo, monospace`
-                : '"Berkeley Mono", ui-monospace, Menlo, Consolas, monospace',
+                : '"Google Sans Code", "Berkeley Mono", ui-monospace, Menlo, Consolas, monospace',
               scrollBeyondLastLine: false,
               automaticLayout: true,
               tabSize: 2,

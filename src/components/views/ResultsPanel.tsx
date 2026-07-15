@@ -20,6 +20,7 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
   const [pathInput, setPathInput] = useState("");
   // raw top-level columns by default; normalized JSON-path view is opt-in
   const [normalized, setNormalized] = useState(false);
+  const [view, setView] = useState<"table" | "json">("table");
   const [filter, setFilter] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
@@ -145,6 +146,12 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
               <Icon name="table" /> {normalized ? "Normalized on" : "Raw columns"}
             </ToolButton>
             <ToolButton
+              title={`Switch to ${view === "table" ? "JSON" : "table"} view`}
+              onClick={() => setView((current) => (current === "table" ? "json" : "table"))}
+            >
+              <Icon name={view === "table" ? "braces" : "table"} /> {view === "table" ? "JSON" : "Table"}
+            </ToolButton>
+            <ToolButton
               title="Copy all hits as NDJSON to clipboard"
               disabled={!hits?.length}
               onClick={() => void copyNdjson()}
@@ -153,7 +160,7 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
             </ToolButton>
           </div>
         </div>
-        <div className="path-preview">
+        {view === "table" && <div className="path-preview">
           <input
             className="path-input"
             value={filter}
@@ -173,11 +180,11 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
             }}
           />
           <ToolButton onClick={addPath}><Icon name="plus" /> Add path</ToolButton>
-        </div>
+        </div>}
       </div>
       <div className="result-grid">
         {result?.error && <div className="err-note">{result.error}</div>}
-        {!result?.error && hits && (
+        {!result?.error && view === "table" && hits && (
           <table>
             <thead>
               <tr>
@@ -270,12 +277,12 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
             </tbody>
           </table>
         )}
-        {!result?.error && !hits && result != null && <JsonView value={result.raw} />}
+        {!result?.error && result != null && (view === "json" || !hits) && <JsonView value={result.raw} />}
         {result == null && (
           <div className="empty-note">Press Run (⌘↵) to execute this request against the cluster.</div>
         )}
       </div>
-      <div className="result-foot">
+      {view === "table" && <div className="result-foot">
         <div className="seg">
           <ToolButton iconOnly disabled={safePage === 1} title="First page" aria-label="First page" onClick={() => setPage(1)}><Icon name="chevrons-left" /></ToolButton>
           <ToolButton iconOnly disabled={safePage === 1} title="Previous page" aria-label="Previous page" onClick={() => setPage((p) => Math.max(1, p - 1))}><Icon name="arrow-left" /></ToolButton>
@@ -300,7 +307,7 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
             ))}
           </select>
         </div>
-      </div>
+      </div>}
     </div>
   );
 }
