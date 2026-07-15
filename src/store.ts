@@ -1,6 +1,15 @@
 import { create } from "zustand";
 import { isThemeId, themeBase } from "./lib/themes";
 import { clampFontSize, DEFAULT_FONT_SIZE } from "./lib/fontScale";
+import {
+  AI_SESSION_CAP,
+  appendAiEntry,
+  createAiSession,
+  deleteAiSession,
+  loadAiSessionState,
+  type AiChatEntry,
+  type AiChatSession,
+} from "./lib/aiSessions";
 import type {
   Connection,
   DocsTabState,
@@ -104,6 +113,7 @@ function loadSession(): {
 }
 
 const session = loadSession();
+const aiSessionState = loadAiSessionState(localStorage.getItem("elasticmin:ai-sessions"));
 
 export interface ToastMsg {
   title: string;
@@ -125,6 +135,8 @@ interface AppState {
   activeConnId: string | null;
   savedQueries: SavedQuery[];
   history: HistoryEntry[];
+  aiSessions: AiChatSession[];
+  activeAiSessionId: string;
 
   tabs: TabDef[];
   activeTabId: string;
@@ -169,6 +181,10 @@ interface AppState {
   renameSavedQuery: (id: string, name: string) => void;
   pushHistory: (e: HistoryEntry) => void;
   clearHistory: () => void;
+  newAiSession: () => string;
+  setActiveAiSession: (id: string) => void;
+  appendAiEntry: (sessionId: string, entry: AiChatEntry) => void;
+  deleteAiSession: (id: string) => void;
   saveConnection: (conn: Connection) => void;
   deleteConnection: (id: string) => void;
   setActiveConn: (id: string | null) => void;
@@ -222,6 +238,8 @@ export const useApp = create<AppState>((set, get) => ({
   activeConnId: null,
   savedQueries: [],
   history: loadHistory(),
+  aiSessions: aiSessionState.sessions,
+  activeAiSessionId: aiSessionState.activeSessionId,
 
   tabs: session?.tabs ?? [{ id: "welcome", kind: "welcome", ...TAB_META.welcome }],
   activeTabId: session?.activeTabId ?? "welcome",
@@ -294,6 +312,25 @@ export const useApp = create<AppState>((set, get) => ({
     localStorage.removeItem("elasticmin:history");
     set({ history: [] });
   },
+  newAiSession: () => {
+    const chat = createAiSession();
+    set((s) => ({
+      aiSessions: [chat, ...s.aiSessions].slice(0, AI_SESSION_CAP),
+      activeAiSessionId: chat.id,
+    }));
+    return chat.id;
+  },
+  setActiveAiSession: (id) =>
+    set((s) =>
+      s.aiSessions.some((chat) => chat.id === id) ? { activeAiSessionId: id } : s,
+    ),
+  appendAiEntry: (sessionId, entry) =>
+    set((s) => ({ aiSessions: appendAiEntry(s.aiSessions, sessionId, entry) })),
+  deleteAiSession: (id) =>
+    set((s) => {
+      const next = deleteAiSession(s.aiSessions, id, s.activeAiSessionId);
+      return { aiSessions: next.sessions, activeAiSessionId: next.activeSessionId };
+    }),
   saveConnection: (conn) =>
     set((s) => {
       const existing = s.connections.findIndex((c) => c.id === conn.id);

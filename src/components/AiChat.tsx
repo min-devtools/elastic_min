@@ -10,25 +10,30 @@ import {
   buildSystemPrompt,
   parseGeneratedQuery,
   type ChatMsg,
-  type GeneratedQuery,
 } from "../lib/ai";
-
-interface ChatEntry {
-  role: "user" | "assistant";
-  text: string;
-  query?: GeneratedQuery;
-  error?: boolean;
-}
 
 export function AiChat() {
   const conn = useActiveConnection();
   const indices = useIndices();
-  const { activeIndex, aiProvider, openTab, showToast } = useApp();
+  const {
+    activeIndex,
+    aiProvider,
+    openTab,
+    showToast,
+    aiSessions,
+    activeAiSessionId,
+    newAiSession,
+    setActiveAiSession,
+    appendAiEntry,
+    deleteAiSession,
+  } = useApp();
   const mapping = useMappingFields(activeIndex);
-  const [entries, setEntries] = useState<ChatEntry[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const activeSession =
+    aiSessions.find((session) => session.id === activeAiSessionId) ?? aiSessions[0];
+  const entries = activeSession?.entries ?? [];
 
   const configured = !!aiProvider.apiKey && !!aiProvider.endpoint && !!aiProvider.model;
 
@@ -38,10 +43,11 @@ export function AiChat() {
 
   const send = async () => {
     const question = input.trim();
-    if (!question || busy || !configured) return;
+    if (!question || busy || !configured || !activeSession) return;
+    const sessionId = activeSession.id;
     setInput("");
     const history = [...entries, { role: "user" as const, text: question }];
-    setEntries(history);
+    appendAiEntry(sessionId, { role: "user", text: question });
     setBusy(true);
     try {
       const system = buildSystemPrompt(indices.data ?? [], activeIndex, mapping.data ?? []);
@@ -57,15 +63,16 @@ export function AiChat() {
       if (gen) {
         applyGeneratedQuery(gen);
         showToast("Query generated", `${gen.method} ${gen.path} loaded into the Query editor.`);
-        setEntries((prev) => [
-          ...prev,
-          { role: "assistant", text: gen.note ?? "Query applied to the editor.", query: gen },
-        ]);
+        appendAiEntry(sessionId, {
+          role: "assistant",
+          text: gen.note ?? "Query applied to the editor.",
+          query: gen,
+        });
       } else {
-        setEntries((prev) => [...prev, { role: "assistant", text: reply }]);
+        appendAiEntry(sessionId, { role: "assistant", text: reply });
       }
     } catch (err) {
-      setEntries((prev) => [...prev, { role: "assistant", text: String(err), error: true }]);
+      appendAiEntry(sessionId, { role: "assistant", text: String(err), error: true });
     } finally {
       setBusy(false);
     }
@@ -73,6 +80,36 @@ export function AiChat() {
 
   return (
     <div className="ai-chat">
+      <div className="ai-session-bar">
+        <select
+          className="ai-session-select"
+          aria-label="AI chat session"
+          value={activeSession?.id ?? ""}
+          onChange={(e) => setActiveAiSession(e.target.value)}
+        >
+          {aiSessions.map((session) => (
+            <option key={session.id} value={session.id}>{session.title}</option>
+          ))}
+        </select>
+        <ToolButton
+          iconOnly
+          title="New chat"
+          aria-label="New chat"
+          disabled={busy}
+          onClick={newAiSession}
+        >
+          <Icon name="plus" />
+        </ToolButton>
+        <ToolButton
+          iconOnly
+          title="Delete chat"
+          aria-label="Delete chat"
+          disabled={busy}
+          onClick={() => activeSession && deleteAiSession(activeSession.id)}
+        >
+          <Icon name="trash" />
+        </ToolButton>
+      </div>
       <div className="ai-messages" ref={scrollRef}>
         {entries.length === 0 && (
           <div className="ai-hint">

@@ -52,6 +52,16 @@ export async function initPersistence(): Promise<void> {
         }),
       );
     }
+    if (s.aiSessions !== prev.aiSessions || s.activeAiSessionId !== prev.activeAiSessionId) {
+      try {
+        localStorage.setItem(
+          "elasticmin:ai-sessions",
+          JSON.stringify({ sessions: s.aiSessions, activeSessionId: s.activeAiSessionId }),
+        );
+      } catch (err) {
+        console.error("failed to persist AI chat sessions", err);
+      }
+    }
     prev = s;
   });
 }

@@ -769,9 +769,33 @@ tbody tr:hover td, tbody tr.selected td { background: color-mix(in oklab, var(--
 .ai-chat {
   min-height: 0;
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   background: var(--pane);
 }
+
+.ai-session-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 6px;
+  align-items: center;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--pane-2);
+}
+
+.ai-session-select {
+  min-width: 0;
+  height: 30px;
+  padding: 0 8px;
+  color: var(--text);
+  background: var(--pane);
+  border: 1px solid var(--line-2);
+  border-radius: 7px;
+  outline: none;
+  font: 0.8462rem/1 var(--font-body);
+}
+
+.ai-session-select:focus { border-color: var(--blue); }
 
 .ai-messages {
   min-height: 0;
@@ -874,6 +898,22 @@ body.light .ai-query { background: var(--editor-bg); }
 }
 
 .ai-input:disabled { opacity: 0.5; }
+
+/* native <select> normalized to combobox-style trigger: kill OS chevron, add
+   themed chevron matching .combobox. !important beats per-class background:
+   shorthands scattered across components.css + views.css, whatever load order.
+   ponytail: styled native select, not JS combobox — popup list stays OS-native;
+   swap to <Combobox> per-site only if a glass popup is needed. */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  padding-right: 26px !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%238a8a8a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 9px center !important;
+  background-size: 11px 11px !important;
+}
 
 .combobox { position: relative; min-width: 0; }
 

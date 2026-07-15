@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { Kv } from "../ui/Kv";
 import { MiniTabs } from "../ui/MiniTabs";
 import { ToolButton } from "../ui/ToolButton";
@@ -20,7 +19,7 @@ export function Inspector() {
   const [diffOpen, setDiffOpen] = useState(false);
   const conn = useActiveConnection();
   const queryClient = useQueryClient();
-  const { selectedDoc, selectDoc, focusField, showToast, openDialog } = useApp();
+  const { selectedDoc, selectDoc, focusField, showToast } = useApp();
   const vimStatusRef = useRef<HTMLSpanElement>(null);
 
   // reload editor when another document is selected
@@ -37,15 +36,6 @@ export function Inspector() {
   } catch {
     draftValid = false;
   }
-
-  const copy = async (text: string, what: string) => {
-    try {
-      await writeText(text);
-      showToast("Copied", `${what} copied to clipboard.`);
-    } catch {
-      showToast("Copy failed", "Clipboard is not available.", "err");
-    }
-  };
 
   const save = async () => {
     if (!conn || !selectedDoc) return;
@@ -79,26 +69,6 @@ export function Inspector() {
     }
   };
 
-  const deleteDoc = async () => {
-    if (!conn || !selectedDoc) return;
-    const ok = await openDialog({
-      kind: "confirm",
-      title: "Delete document",
-      message: `Delete document ${selectedDoc._id} from ${selectedDoc._index}?`,
-      confirmLabel: "Delete",
-      danger: true,
-    });
-    if (!ok) return;
-    try {
-      await esJson(conn, "DELETE", `/${encodeURIComponent(selectedDoc._index)}/_doc/${encodeURIComponent(selectedDoc._id)}?refresh=true`);
-      showToast("Document deleted", `${selectedDoc._id} removed from ${selectedDoc._index}.`);
-      selectDoc(null);
-      void queryClient.invalidateQueries({ queryKey: ["docs"] });
-    } catch (err) {
-      showToast("Delete failed", String(err), "err");
-    }
-  };
-
   return (
     <aside className="inspector">
       <div className="inspector-head">
@@ -116,7 +86,6 @@ export function Inspector() {
         tabs={[
           { id: "json", label: "JSON" },
           { id: "meta", label: "Metadata" },
-          { id: "actions", label: "Actions" },
           { id: "ai", label: "AI" },
         ]}
         active={pane}
@@ -168,27 +137,6 @@ export function Inspector() {
               {selectedDoc._primary_term != null && (
                 <Kv label="_primary_term">{selectedDoc._primary_term}</Kv>
               )}
-            </div>
-          )}
-        </div>
-      )}
-      {pane === "actions" && (
-        <div className="inspector-scroll">
-          {!selectedDoc && <div className="empty-note">No document selected.</div>}
-          {selectedDoc && (
-            <div className="actions">
-              <button className="action-btn" onClick={() => copy(selectedDoc._id, "Document ID")}>
-                <Icon name="copy" /> Copy document ID
-              </button>
-              <button
-                className="action-btn"
-                onClick={() => copy(JSON.stringify(selectedDoc._source, null, 2), "Document JSON")}
-              >
-                <Icon name="copy" /> Copy document JSON
-              </button>
-              <button className="action-btn" style={{ color: "var(--red)" }} onClick={deleteDoc}>
-                <Icon name="trash" /> Delete document...
-              </button>
             </div>
           )}
         </div>
