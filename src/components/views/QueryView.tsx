@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import Editor, { type OnMount } from "@monaco-editor/react";
 import { initVimMode } from "monaco-vim";
 import { ToolButton } from "../../ui/ToolButton";
+import { LoadingBar } from "../../ui/LoadingBar";
 import { StatusDot } from "../../ui/StatusDot";
 import { Icon } from "../../ui/Icon";
 import { useApp } from "../../store";
@@ -133,7 +134,7 @@ export function QueryView({ tabId, active }: { tabId: string; active: boolean })
             </ToolButton>
           </div>
           {/* pinned to the bottom edge of the head row; overlay, never a layout child (see .editor-head) */}
-          <div className={`req-progress ${qt.running ? "on" : ""}`}><span /></div>
+          <LoadingBar active={qt.running} />
         </div>
         <div className="editor-host json-editor-shell has-json-tools">
           <div className="json-editor-tools">
