@@ -1,8 +1,10 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { Icon, type IconName } from "../../ui/Icon";
+import { ToolButton } from "../../ui/ToolButton";
 import { useApp } from "../../store";
 import { useSystemFonts } from "../../lib/queries";
 import { THEMES, themeBase } from "../../lib/themes";
+import { FONT_SIZE_STEP } from "../../lib/fontScale";
 
 function Row({
   icon,
@@ -17,7 +19,7 @@ function Row({
 }) {
   return (
     <div className="settings-row">
-      <span className="settings-icon"><Icon name={icon} /></span>
+      <span className="settings-icon"><Icon name={icon} size={15} /></span>
       <div className="settings-copy">
         <strong>{title}</strong>
         <span>{desc}</span>
@@ -30,12 +32,10 @@ function Row({
 function FontSelect({
   value,
   fonts,
-  placeholder,
   onChange,
 }: {
   value: string;
   fonts: string[];
-  placeholder: string;
   onChange: (v: string) => void;
 }) {
   return (
@@ -45,7 +45,7 @@ function FontSelect({
       style={value ? { fontFamily: `"${value}"` } : undefined}
       onChange={(e) => onChange(e.target.value)}
     >
-      <option value="">{placeholder}</option>
+      <option value="">Design default</option>
       {fonts.map((f) => (
         <option key={f} value={f} style={{ fontFamily: `"${f}"` }}>{f}</option>
       ))}
@@ -70,7 +70,7 @@ export function SettingsView({ active }: { active: boolean }) {
           <p style={{ margin: 0, color: "var(--text-3)", fontSize: "0.9231rem" }}>Appearance, fonts, editor behavior, and keyboard shortcuts for this workspace.</p>
         </div>
 
-        <div className="settings-card">
+        <section className="settings-card">
           <h3>Appearance</h3>
           <Row
             icon={themeBase(theme) === "dark" ? "moon" : "sun"}
@@ -96,101 +96,70 @@ export function SettingsView({ active }: { active: boolean }) {
             }
           />
           <Row
-            icon="rows"
-            title="Compact density"
-            desc="Tighter table rows and narrower side panels."
+            icon="braces"
+            title="Interface font size"
+            desc={`Scales all interface text in 0.5px steps. Current: ${uiFontSize}px. ⌘+ / ⌘− to adjust.`}
             control={
-              <input type="checkbox" className="row-check" checked={compact} onChange={toggleCompact} />
+              <div style={{ display: "flex", gap: 6 }}>
+                <ToolButton iconOnly title="Decrease interface font (⌘−)" onClick={() => setUiFontSize(uiFontSize - FONT_SIZE_STEP)}>−</ToolButton>
+                <ToolButton title="Reset to default" onClick={() => setUiFontSize(0)}>{uiFontSize}px</ToolButton>
+                <ToolButton iconOnly title="Increase interface font (⌘+)" onClick={() => setUiFontSize(uiFontSize + FONT_SIZE_STEP)}>+</ToolButton>
+              </div>
             }
           />
           <Row
             icon="rows"
-            title="UI font"
-            desc={`Interface font, loaded from this Mac (${fontList.length || "…"} families).`}
-            control={
-              <FontSelect
-                value={uiFont}
-                fonts={fontList}
-                placeholder="Inter (default)"
-                onChange={(v) => {
-                  setUiFont(v);
-                  showToast("UI font", v ? `Switched to ${v}.` : "Reset to design default.");
-                }}
-              />
-            }
-          />
-        </div>
-
-        <div className="settings-card">
-          <h3>Query editor</h3>
-          <Row
-            icon="keyboard"
-            title="Vim mode"
-            desc="Modal editing via monaco-vim. Mode shows in the editor footer."
-            control={
-              <input
-                type="checkbox"
-                className="row-check"
-                checked={vimMode}
-                onChange={() => {
-                  toggleVim();
-                  showToast("Vim mode", vimMode ? "Disabled." : "Enabled — NORMAL mode in query editor.");
-                }}
-              />
-            }
+            title="Interface font family"
+            desc={`Applied across the workspace, loaded from this Mac (${fontList.length || "…"} families).`}
+            control={<FontSelect value={uiFont} fonts={fontList} onChange={setUiFont} />}
           />
           <Row
             icon="braces"
-            title="Editor font"
+            title="Editor font family"
             desc="Monospace recommended. Applies to the query editor and JSON views."
-            control={
-              <FontSelect
-                value={editorFont}
-                fonts={fontList}
-                placeholder="Google Sans Code (default)"
-                onChange={(v) => {
-                  setEditorFont(v);
-                  showToast("Editor font", v ? `Switched to ${v}.` : "Reset to design default.");
-                }}
-              />
-            }
+            control={<FontSelect value={editorFont} fonts={fontList} onChange={setEditorFont} />}
           />
           <Row
             icon="pencil"
             title="Editor font size"
-            desc="10 – 22 px, applies to all query tabs."
+            desc={`10 – 22 px, applies to all query tabs. Current: ${editorFontSize}px.`}
             control={
-              <input
-                type="number"
-                className="settings-select"
-                style={{ width: 72 }}
-                min={10}
-                max={22}
-                value={editorFontSize}
-                onChange={(e) => setEditorFontSize(Number(e.target.value))}
-              />
+              <div style={{ display: "flex", gap: 6 }}>
+                <ToolButton iconOnly title="Decrease editor font" onClick={() => setEditorFontSize(editorFontSize - 1)}>−</ToolButton>
+                <ToolButton title="Reset to default" onClick={() => setEditorFontSize(0)}>{editorFontSize}px</ToolButton>
+                <ToolButton iconOnly title="Increase editor font" onClick={() => setEditorFontSize(editorFontSize + 1)}>+</ToolButton>
+              </div>
             }
           />
           <Row
-            icon="pencil"
-            title="UI font size"
-            desc="10 – 20 px, whole app. ⌘+ / ⌘- to adjust (0.5 per press)."
+            icon="rows"
+            title="Compact density"
+            desc="Tighter table rows and narrower side panels."
             control={
-              <input
-                type="number"
-                className="settings-select"
-                style={{ width: 72 }}
-                min={10}
-                max={20}
-                step={0.5}
-                value={uiFontSize}
-                onChange={(e) => setUiFontSize(Number(e.target.value))}
-              />
+              <label className="switch"><input type="checkbox" checked={compact} onChange={toggleCompact} /><span /></label>
             }
           />
-        </div>
+          <Row
+            icon="keyboard"
+            title="Vim mode"
+            desc="Modal editing via monaco-vim in the query editor. Mode shows in the editor footer."
+            control={
+              <label className="switch">
+                <input
+                  type="checkbox"
+                  checked={vimMode}
+                  onChange={() => {
+                    toggleVim();
+                    showToast("Vim mode", vimMode ? "Disabled." : "Enabled — NORMAL mode in query editor.");
+                  }}
+                />
+                <span />
+              </label>
+            }
+          />
+        </section>
 
-        <div className="settings-card">
+        <section className="settings-card">
           <h3>AI Provider (OpenAI-compatible)</h3>
           <Row
             icon="globe"
@@ -241,33 +210,34 @@ export function SettingsView({ active }: { active: boolean }) {
             desc="Open the AI tab in the right dock (next to JSON / Metadata) and describe the query — it lands in the open Query tab."
             control={<span />}
           />
-        </div>
+        </section>
 
-        <div className="settings-card">
-          <h3>Keyboard shortcuts</h3>
+        <section className="settings-card">
+          <h3>Shortcuts</h3>
           <div className="shortcut-grid">
             {[
-              ["⌘↵", "Run current query"],
-              ["⌘N", "New query tab"],
-              ["⌘S", "Save query (sidebar + ⌘K)"],
-              ["⌘W", "Close current tab (middle-click too)"],
-              ["⌘1…9", "Jump to tab N (double-click a query tab to rename)"],
-              ["⌘K", "Search everywhere / command palette"],
-              ["⌘B", "Toggle left sidebar"],
-              ["⌘R", "Toggle right inspector"],
-              ["⌘D", "Open Documents"],
-              ["⌘,", "Open Settings"],
-              ["Esc", "Close palette / dialogs"],
-            ].map(([key, desc]) => (
+              ["Run current query", "⌘↵"],
+              ["New query tab", "⌘N"],
+              ["Save query (sidebar + ⌘K)", "⌘S"],
+              ["Close current tab (middle-click too)", "⌘W"],
+              ["Jump to tab 1…9", "⌘1…9"],
+              ["Search everywhere / command palette", "⌘K"],
+              ["Toggle left sidebar", "⌘B"],
+              ["Toggle right inspector", "⌘R"],
+              ["Open Documents", "⌘D"],
+              ["Increase font", "⌘+"],
+              ["Decrease font", "⌘−"],
+              ["Open Settings", "⌘,"],
+            ].map(([desc, key]) => (
               <div className="shortcut-row" key={key}>
-                <span className="kbd">{key}</span>
                 <span>{desc}</span>
+                <span className="kbd">{key}</span>
               </div>
             ))}
           </div>
-        </div>
+        </section>
 
-        <div className="settings-card">
+        <section className="settings-card">
           <h3>Data</h3>
           <Row
             icon="database"
@@ -275,7 +245,7 @@ export function SettingsView({ active }: { active: boolean }) {
             desc="Stored in Tauri app-data (elasticmin.json). Right-click a connection in the sidebar to edit or remove it."
             control={<span />}
           />
-        </div>
+        </section>
 
         <div className="settings-credit">
           <button

@@ -1,7 +1,6 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useApp } from "../store";
 import { useActiveConnection, useClusterHealth, useClusterInfo } from "../lib/queries";
-import { version } from "../../package.json";
 
 export function Statusbar() {
   const conn = useActiveConnection();
@@ -54,7 +53,7 @@ export function Statusbar() {
         <span>{info.data ? `ES ${info.data.version.number}` : ""}</span>
         <span>UTF-8</span>
         <span>{activeTab?.title ?? ""}</span>
-        <span>v{version}</span>
+        <span>v{__APP_VERSION__}</span>
         <span
           className="credit"
           style={{ cursor: "pointer" }}

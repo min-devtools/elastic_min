@@ -90,6 +90,13 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
     });
   };
 
+  const bulkCopy = async () => {
+    if (!hits || selected.size === 0) return;
+    const targets = hits.filter((h) => selected.has(h._id));
+    await writeText(JSON.stringify(targets, null, 2));
+    showToast("Copied", `${targets.length} document(s) copied as JSON.`);
+  };
+
   const bulkDelete = async () => {
     if (!conn || !hits || selected.size === 0) return;
     const ok = await openDialog({
@@ -130,6 +137,14 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
             <span className="result-meta">{meta}</span>
           </div>
           <div className="seg">
+            {selected.size > 0 && (
+              <ToolButton
+                title="Copy selected documents as JSON"
+                onClick={() => void bulkCopy()}
+              >
+                <Icon name="copy" /> Copy {selected.size}
+              </ToolButton>
+            )}
             {selected.size > 0 && (
               <ToolButton
                 variant="danger"

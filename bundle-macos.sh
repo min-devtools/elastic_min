@@ -13,7 +13,8 @@ done
 
 cd "$ROOT_DIR"
 [[ -d node_modules ]] || npm ci
-npm run tauri build -- --bundles app
+VERSION="$(tr -d '[:space:]' < "$ROOT_DIR/VERSION")"
+npm run tauri build -- --bundles app --config "{\"version\":\"$VERSION\"}"
 
 [[ -d "$APP_PATH" ]] || { echo "Error: bundle was not created at $APP_PATH" >&2; exit 1; }
 
