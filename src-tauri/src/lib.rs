@@ -1,6 +1,38 @@
+use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
+
+/// Cached clients (one per TLS mode) — keep-alive instead of a new pool + TLS
+/// handshake per request (3 polling queries fire every 10s).
+fn es_client(insecure: bool) -> Result<&'static reqwest::Client, String> {
+    static VERIFIED: OnceLock<reqwest::Client> = OnceLock::new();
+    static INSECURE: OnceLock<reqwest::Client> = OnceLock::new();
+    let cell = if insecure { &INSECURE } else { &VERIFIED };
+    if let Some(c) = cell.get() {
+        return Ok(c);
+    }
+    let client = reqwest::Client::builder()
+        .danger_accept_invalid_certs(insecure)
+        .connect_timeout(Duration::from_secs(8))
+        .timeout(Duration::from_secs(60))
+        .build()
+        .map_err(|e| e.to_string())?;
+    Ok(cell.get_or_init(|| client))
+}
+
+fn ai_client() -> Result<&'static reqwest::Client, String> {
+    static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+    if let Some(c) = CLIENT.get() {
+        return Ok(c);
+    }
+    let client = reqwest::Client::builder()
+        .connect_timeout(Duration::from_secs(10))
+        .timeout(Duration::from_secs(180))
+        .build()
+        .map_err(|e| e.to_string())?;
+    Ok(CLIENT.get_or_init(|| client))
+}
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -36,12 +68,7 @@ async fn es_request(
     body: Option<String>,
     content_type: Option<String>,
 ) -> Result<EsResponse, String> {
-    let client = reqwest::Client::builder()
-        .danger_accept_invalid_certs(conn.insecure)
-        .connect_timeout(Duration::from_secs(8))
-        .timeout(Duration::from_secs(60))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = es_client(conn.insecure)?;
 
     let method = reqwest::Method::from_bytes(method.to_uppercase().as_bytes())
         .map_err(|_| format!("invalid HTTP method: {method}"))?;
@@ -99,11 +126,7 @@ async fn ai_chat(
     messages: serde_json::Value,
 ) -> Result<String, String> {
     let url = format!("{}/chat/completions", endpoint.trim_end_matches('/'));
-    let client = reqwest::Client::builder()
-        .connect_timeout(Duration::from_secs(10))
-        .timeout(Duration::from_secs(180))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = ai_client()?;
     let res = client
         .post(&url)
         .bearer_auth(api_key)

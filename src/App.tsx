@@ -21,7 +21,7 @@ import { SettingsView } from "./components/views/SettingsView";
 import { HistoryView } from "./components/views/HistoryView";
 import { IndexStatsView } from "./components/views/IndexStatsView";
 import { SavedQueriesView } from "./components/views/SavedQueriesView";
-import { inspectorAvailable, useApp } from "./store";
+import { closeTabWithConfirm, inspectorAvailable, useApp } from "./store";
 import { runActiveQuery, saveActiveQuery } from "./lib/runQuery";
 import { themeBase } from "./lib/themes";
 import { retintMonaco } from "./lib/monaco";
@@ -48,13 +48,21 @@ function renderView(tab: TabDef, active: boolean) {
 }
 
 export default function App() {
-  const {
-    tabs, activeTabId, theme, compact, leftCollapsed, rightCollapsed,
-    toggleLeft, toggleRight, setCommandOpen, newQueryTab, queryTabs,
-  } = useApp();
+  // per-field selectors — a whole-store subscribe here re-renders every mounted
+  // view on each Monaco keystroke (queryTabs changes on every edit)
+  const tabs = useApp((s) => s.tabs);
+  const activeTabId = useApp((s) => s.activeTabId);
+  const theme = useApp((s) => s.theme);
+  const compact = useApp((s) => s.compact);
+  const leftCollapsed = useApp((s) => s.leftCollapsed);
+  const rightCollapsed = useApp((s) => s.rightCollapsed);
+  const toggleLeft = useApp((s) => s.toggleLeft);
+  const toggleRight = useApp((s) => s.toggleRight);
+  const setCommandOpen = useApp((s) => s.setCommandOpen);
+  const newQueryTab = useApp((s) => s.newQueryTab);
 
   const inspectorOk = useApp((s) => inspectorAvailable(s));
-  const running = queryTabs[activeTabId]?.running ?? false;
+  const running = useApp((s) => s.queryTabs[s.activeTabId]?.running ?? false);
   const uiFont = useApp((s) => s.uiFont);
   const editorFont = useApp((s) => s.editorFont);
   const uiFontSize = useApp((s) => s.uiFontSize);
@@ -148,8 +156,19 @@ export default function App() {
       }
       if (mod && key === "w") {
         e.preventDefault();
+        void closeTabWithConfirm(useApp.getState().activeTabId);
+      }
+      // ctrl-tab / ctrl-shift-tab and ⇧⌘[ / ⇧⌘] — cycle tabs
+      const cycle =
+        (e.ctrlKey && e.key === "Tab") ||
+        (mod && e.shiftKey && (e.key === "[" || e.key === "]" || e.key === "{" || e.key === "}"));
+      if (cycle) {
+        e.preventDefault();
         const s = useApp.getState();
-        s.closeTab(s.activeTabId);
+        const idx = s.tabs.findIndex((t) => t.id === s.activeTabId);
+        const back = (e.ctrlKey && e.shiftKey) || e.key === "[" || e.key === "{";
+        const next = s.tabs[(idx + (back ? -1 : 1) + s.tabs.length) % s.tabs.length];
+        if (next) s.activateTab(next.id);
       }
       // ⌘1…⌘9 — jump to the Nth tab
       if (mod && key >= "1" && key <= "9") {

@@ -34,26 +34,31 @@ export function startResize(
       const max = Math.min(430, rect.width - 760);
       const next = clamp(e.clientX - rect.left, 190, max);
       document.body.style.setProperty("--left-w", `${Math.round(next)}px`);
-      localStorage.setItem("elasticmin:left-w", String(Math.round(next)));
     }
     if (axis === "right" && main) {
       const rect = main.getBoundingClientRect();
       const max = Math.min(700, rect.width - 760);
       const next = clamp(rect.right - e.clientX, 260, max);
       document.body.style.setProperty("--right-w", `${Math.round(next)}px`);
-      localStorage.setItem("elasticmin:right-w", String(Math.round(next)));
     }
     if (axis === "query" && query && topPane) {
       const rect = query.getBoundingClientRect();
       const max = Math.max(300, rect.height - 190);
       const next = clamp(startTop + (e.clientY - startY), 240, max);
       document.body.style.setProperty("--query-top", `${Math.round(next)}px`);
-      localStorage.setItem("elasticmin:query-top", String(Math.round(next)));
     }
   };
   const stop = () => {
     document.body.classList.remove("resizing", "resizing-y");
     window.removeEventListener("pointermove", move);
+    // persist once at drag end — sync localStorage writes at 60-120Hz stutter the drag
+    const persist = (key: string, cssVar: string) => {
+      const v = parseInt(document.body.style.getPropertyValue(cssVar), 10);
+      if (v) localStorage.setItem(key, String(v));
+    };
+    if (axis === "left") persist("elasticmin:left-w", "--left-w");
+    if (axis === "right") persist("elasticmin:right-w", "--right-w");
+    if (axis === "query") persist("elasticmin:query-top", "--query-top");
   };
   window.addEventListener("pointermove", move);
   window.addEventListener("pointerup", stop, { once: true });

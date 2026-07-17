@@ -2,7 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ToolButton } from "../ui/ToolButton";
 import { Badge } from "../ui/Badge";
 import { Icon } from "../ui/Icon";
-import { runActiveQuery } from "../lib/runQuery";
+import { cancelQueryRun, runActiveQuery } from "../lib/runQuery";
 import { useApp } from "../store";
 import { useActiveConnection, useClusterHealth } from "../lib/queries";
 import logo from "../assets/logo.png";
@@ -11,14 +11,19 @@ import { themeBase } from "../lib/themes";
 export function Titlebar() {
   const conn = useActiveConnection();
   const health = useClusterHealth();
-  const {
-    newQueryTab, toggleTheme, toggleCompact, setCommandOpen, showToast,
-    activeTabId, tabs, queryTabs, updateQueryTab, theme, openTab,
-  } = useApp();
+  const newQueryTab = useApp((s) => s.newQueryTab);
+  const toggleTheme = useApp((s) => s.toggleTheme);
+  const toggleCompact = useApp((s) => s.toggleCompact);
+  const setCommandOpen = useApp((s) => s.setCommandOpen);
+  const showToast = useApp((s) => s.showToast);
+  const theme = useApp((s) => s.theme);
+  const openTab = useApp((s) => s.openTab);
+  const activeTabId = useApp((s) => s.activeTabId);
+  const activeTabKind = useApp((s) => s.tabs.find((t) => t.id === s.activeTabId)?.kind);
+  const running = useApp(
+    (s) => s.tabs.find((t) => t.id === s.activeTabId)?.kind === "query" && !!s.queryTabs[s.activeTabId]?.running,
+  );
   const queryClient = useQueryClient();
-
-  const activeTab = tabs.find((t) => t.id === activeTabId);
-  const running = activeTab?.kind === "query" && queryTabs[activeTabId]?.running;
 
   return (
     <header className="titlebar" data-tauri-drag-region>
@@ -44,8 +49,8 @@ export function Titlebar() {
           variant="danger"
           disabled={!running}
           onClick={() => {
-            if (activeTab?.kind === "query") updateQueryTab(activeTabId, { running: false });
-            showToast("Query cancelled", "The active request result will be ignored.");
+            if (activeTabKind === "query") cancelQueryRun(activeTabId);
+            showToast("Query cancelled", "The in-flight response will be dropped.");
           }}
           iconOnly
           title="Cancel running query"

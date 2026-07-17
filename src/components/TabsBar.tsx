@@ -1,10 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { useApp } from "../store";
+import { closeTabWithConfirm, useApp } from "../store";
 import { ContextMenu } from "../ui/ContextMenu";
 import { Icon } from "../ui/Icon";
 
 export function TabsBar() {
-  const { tabs, activeTabId, activateTab, closeTab, newQueryTab, renameTab, reorderTab } = useApp();
+  const tabs = useApp((s) => s.tabs);
+  const activeTabId = useApp((s) => s.activeTabId);
+  const activateTab = useApp((s) => s.activateTab);
+  const newQueryTab = useApp((s) => s.newQueryTab);
+  const renameTab = useApp((s) => s.renameTab);
+  const reorderTab = useApp((s) => s.reorderTab);
+  const closeTab = (id: string) => void closeTabWithConfirm(id);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [menu, setMenu] = useState<{ x: number; y: number; id: string } | null>(null);
@@ -145,8 +151,11 @@ export function TabsBar() {
             {
               icon: "rows" as const,
               label: "Close others",
-              onClick: () => {
-                for (const t of tabs.filter((t) => t.id !== menu.id)) closeTab(t.id);
+              onClick: async () => {
+                // sequential — dirty tabs each get their confirm dialog
+                for (const t of tabs.filter((t) => t.id !== menu.id)) {
+                  await closeTabWithConfirm(t.id);
+                }
                 activateTab(menu.id);
               },
             },

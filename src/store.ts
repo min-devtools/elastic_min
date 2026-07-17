@@ -47,7 +47,16 @@ const HISTORY_CAP = 200;
 function loadHistory(): HistoryEntry[] {
   try {
     const h = JSON.parse(localStorage.getItem("elasticmin:history") ?? "[]");
-    return Array.isArray(h) ? h.slice(0, HISTORY_CAP) : [];
+    if (!Array.isArray(h)) return [];
+    return h
+      .filter(
+        (e: any) =>
+          e &&
+          typeof e.path === "string" &&
+          typeof e.method === "string" &&
+          typeof e.at === "number",
+      )
+      .slice(0, HISTORY_CAP);
   } catch {
     return [];
   }
@@ -149,6 +158,8 @@ interface AppState {
   /** index names, most-recently-acted-on first — drives sidebar ordering */
   indexRecency: string[];
   selectedDoc: EsHit | null;
+  /** inspector draft differs from the selected doc — guards against silent discard */
+  inspectorDirty: boolean;
   /** table column the user clicked — highlighted in the inspector JSON */
   focusField: string | null;
   /** connection being edited in the Connection tab (null = new draft) */
@@ -203,6 +214,7 @@ interface AppState {
   setActiveIndex: (index: string | null) => void;
   bumpIndexRecency: (index: string) => void;
   selectDoc: (doc: EsHit | null, focusField?: string | null) => void;
+  setInspectorDirty: (dirty: boolean) => void;
   setEditingConn: (id: string | null) => void;
   setTheme: (id: string) => void;
 
@@ -233,6 +245,48 @@ export const inspectorAvailable = (s: Pick<AppState, "tabs" | "activeTabId">) =>
   return tab?.kind === "query" || tab?.kind === "docs";
 };
 
+/** Select a doc in the inspector, confirming first when the current draft has unsaved edits. */
+export async function selectDocWithConfirm(
+  doc: EsHit | null,
+  focusField: string | null = null,
+): Promise<void> {
+  const s = useApp.getState();
+  if (s.inspectorDirty && doc !== s.selectedDoc) {
+    const ok = await s.openDialog({
+      kind: "confirm",
+      title: "Discard edits?",
+      message: "The inspector has unsaved changes to the current document.",
+      confirmLabel: "Discard",
+      danger: true,
+    });
+    if (ok === null) return;
+  }
+  useApp.getState().selectDoc(doc, focusField);
+}
+
+/** Close a tab, confirming first when it's a query tab with an edited, unsaved body. */
+export async function closeTabWithConfirm(id: string): Promise<void> {
+  const s = useApp.getState();
+  const tab = s.tabs.find((t) => t.id === id);
+  const qt = s.queryTabs[id];
+  const dirty =
+    tab?.kind === "query" &&
+    qt &&
+    qt.body.trim() !== DEFAULT_QUERY_BODY.trim() &&
+    !s.savedQueries.some((sq) => sq.body === qt.body);
+  if (dirty) {
+    const ok = await s.openDialog({
+      kind: "confirm",
+      title: "Close tab?",
+      message: `"${tab.title}" has an unsaved query. Close anyway?`,
+      confirmLabel: "Close",
+      danger: true,
+    });
+    if (ok === null) return;
+  }
+  useApp.getState().closeTab(id);
+}
+
 export const useApp = create<AppState>((set, get) => ({
   connections: [],
   activeConnId: null,
@@ -251,6 +305,7 @@ export const useApp = create<AppState>((set, get) => ({
   activeIndex: session?.activeIndex ?? null,
   indexRecency: [],
   selectedDoc: null,
+  inspectorDirty: false,
   focusField: null,
   editingConnId: null,
 
@@ -305,7 +360,11 @@ export const useApp = create<AppState>((set, get) => ({
   pushHistory: (e) =>
     set((s) => {
       const history = [e, ...s.history].slice(0, HISTORY_CAP);
-      localStorage.setItem("elasticmin:history", JSON.stringify(history));
+      try {
+        localStorage.setItem("elasticmin:history", JSON.stringify(history));
+      } catch (err) {
+        console.error("failed to persist history", err);
+      }
       return { history };
     }),
   clearHistory: () => {
@@ -479,9 +538,11 @@ export const useApp = create<AppState>((set, get) => ({
     })),
 
   updateQueryTab: (id, patch) =>
-    set((s) => ({
-      queryTabs: { ...s.queryTabs, [id]: { ...s.queryTabs[id], ...patch } },
-    })),
+    set((s) =>
+      s.queryTabs[id]
+        ? { queryTabs: { ...s.queryTabs, [id]: { ...s.queryTabs[id], ...patch } } }
+        : s,
+    ),
 
   setQueryResult: (id, result) =>
     set((s) =>
@@ -494,7 +555,9 @@ export const useApp = create<AppState>((set, get) => ({
   bumpIndexRecency: (index) =>
     set((s) => ({ indexRecency: [index, ...s.indexRecency.filter((i) => i !== index)] })),
   // auto show/hide the right-dock inspector with what's selected — nothing selected, nothing to show
-  selectDoc: (doc, focusField = null) => set({ selectedDoc: doc, focusField, rightCollapsed: doc === null }),
+  selectDoc: (doc, focusField = null) =>
+    set({ selectedDoc: doc, focusField, inspectorDirty: false, rightCollapsed: doc === null }),
+  setInspectorDirty: (dirty) => set({ inspectorDirty: dirty }),
   setEditingConn: (id) => set({ editingConnId: id }),
   setTheme: (id) => {
     localStorage.setItem("elasticmin:theme-v2", id);
@@ -549,7 +612,10 @@ export const useApp = create<AppState>((set, get) => ({
   showToast: (title, body, kind) => {
     window.clearTimeout(toastTimer);
     set({ toast: { title, body, kind } });
-    toastTimer = window.setTimeout(() => set({ toast: null }), 2600);
+    // errors stay until dismissed — ES error reasons need time to read/copy
+    if (kind !== "err") {
+      toastTimer = window.setTimeout(() => set({ toast: null }), 2600);
+    }
   },
   clearToast: () => {
     window.clearTimeout(toastTimer);

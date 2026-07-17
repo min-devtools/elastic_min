@@ -2,6 +2,7 @@ import { Metric, Panel, BarLine } from "../../ui/MetricPanel";
 import { Kv } from "../../ui/Kv";
 import { useActiveConnection, useClusterHealth, useClusterInfo, useClusterStats, useIndices } from "../../lib/queries";
 import { formatDocCount } from "../../lib/format";
+import { useApp } from "../../store";
 
 const STATUS_COLORS: Record<string, string> = {
   green: "var(--green)",
@@ -69,7 +70,15 @@ export function ClusterView({ active }: { active: boolean }) {
           <table>
             <tbody>
               {topIndices.map((i) => (
-                <tr key={i.index}>
+                <tr
+                  key={i.index}
+                  style={{ cursor: "pointer" }}
+                  title="Open index stats"
+                  onClick={() => {
+                    useApp.getState().setActiveIndex(i.index);
+                    useApp.getState().openTab("index-stats");
+                  }}
+                >
                   <td>{i.index}</td>
                   <td>primary shards {i.pri}</td>
                   <td>replicas {i.rep}</td>

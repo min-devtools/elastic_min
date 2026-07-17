@@ -18,5 +18,12 @@ export default defineConfig({
   build: {
     target: "safari15",
     chunkSizeWarningLimit: 4000,
+    rollupOptions: {
+      output: {
+        // keep the ~4MB editor out of the app chunk so app code changes don't
+        // invalidate the monaco cache entry (monaco-vim stays lazy-loaded)
+        manualChunks: { monaco: ["monaco-editor"] },
+      },
+    },
   },
 });

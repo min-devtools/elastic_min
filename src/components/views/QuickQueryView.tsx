@@ -62,7 +62,11 @@ let nextId = 1;
 export function QuickQueryView({ active }: { active: boolean }) {
   const conn = useActiveConnection();
   const indices = useIndices();
-  const { activeIndex, setActiveIndex, newQueryTab, showToast } = useApp();
+  const activeIndex = useApp((s) => s.activeIndex);
+  const setActiveIndex = useApp((s) => s.setActiveIndex);
+  const newQueryTab = useApp((s) => s.newQueryTab);
+  const showToast = useApp((s) => s.showToast);
+  const openDialog = useApp((s) => s.openDialog);
   const index = activeIndex ?? conn?.defaultIndex ?? indices.data?.[0]?.index ?? "";
   const mapping = useMappingFields(index || null);
   const fields = mapping.data ?? [];
@@ -136,7 +140,17 @@ export function QuickQueryView({ active }: { active: boolean }) {
               value={index}
               placeholder="Search index…"
               options={(indices.data ?? []).map((i) => ({ value: i.index, hint: `${i.health}` }))}
-              onChange={(v) => {
+              onChange={async (v) => {
+                if (v === index) return;
+                if (conditions.some((c) => c.value)) {
+                  const ok = await openDialog({
+                    kind: "confirm",
+                    title: "Switch index?",
+                    message: "Current conditions will be cleared.",
+                    confirmLabel: "Switch",
+                  });
+                  if (ok === null) return;
+                }
                 setActiveIndex(v);
                 setConditions([]);
               }}

@@ -1,13 +1,16 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useApp } from "../../store";
 import { useActiveConnection, useRawMapping } from "../../lib/queries";
 import { flattenMapping, mappingProperties } from "../../lib/es";
+import { ToolButton } from "../../ui/ToolButton";
+import { Icon } from "../../ui/Icon";
 
 export function MappingView({ active }: { active: boolean }) {
   const conn = useActiveConnection();
-  const { activeIndex } = useApp();
+  const activeIndex = useApp((s) => s.activeIndex);
   const index = activeIndex ?? conn?.defaultIndex ?? null;
   const raw = useRawMapping(index);
+  const [filter, setFilter] = useState("");
 
   const { fields, settings } = useMemo(() => {
     const data = raw.data;
@@ -25,22 +28,48 @@ export function MappingView({ active }: { active: boolean }) {
     return { fields, settings };
   }, [raw.data, index]);
 
+  const q = filter.trim().toLowerCase();
+  const shown = q
+    ? fields.filter((f) => f.path.toLowerCase().includes(q) || f.type.toLowerCase().includes(q))
+    : fields;
+
   const pad = (s: string) => s.padEnd(Math.max(22, s.length + 2), " ");
 
   return (
     <section className={`content mapping-view ${active ? "active" : ""}`}>
       <div className="doc-head">
         <strong>Mapping Viewer</strong>
-        <span>{index ? `${index} · ${fields.length} fields` : "select an index in the sidebar"}</span>
+        <span>
+          {index
+            ? `${index} · ${q ? `${shown.length}/${fields.length}` : fields.length} fields`
+            : "select an index in the sidebar"}
+        </span>
+        {index && (
+          <input
+            className="side-search"
+            style={{ width: 220, height: 28, marginLeft: "auto" }}
+            placeholder="Filter fields by path or type"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+          />
+        )}
       </div>
-      {raw.error && <div className="err-note">{String(raw.error)}</div>}
+      {raw.error && (
+        <div className="err-note">
+          {String(raw.error)}
+          <ToolButton title="Reload the mapping" onClick={() => void raw.refetch()}>
+            <Icon name="refresh" /> Retry
+          </ToolButton>
+        </div>
+      )}
       {!raw.error && (
         <pre className="json-tree">
           {index ? (
             <>
               {index}
               {"\n  properties\n"}
-              {fields.map((f) => `    ${pad(f.path)}${f.type}\n`).join("")}
+              {shown.map((f) => `    ${pad(f.path)}${f.type}\n`).join("")}
+              {q && shown.length === 0 ? "    (no fields match)\n" : ""}
               {"  settings\n"}
               {settings.map(([k, v]) => `    ${pad(k)}${v}\n`).join("")}
             </>

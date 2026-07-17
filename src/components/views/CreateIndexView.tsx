@@ -43,7 +43,9 @@ function buildProperties(rows: MappingRow[]): Record<string, any> {
 export function CreateIndexView({ active }: { active: boolean }) {
   const conn = useActiveConnection();
   const queryClient = useQueryClient();
-  const { openTab, setActiveIndex, showToast } = useApp();
+  const openTab = useApp((s) => s.openTab);
+  const setActiveIndex = useApp((s) => s.setActiveIndex);
+  const showToast = useApp((s) => s.showToast);
   const [name, setName] = useState("");
   const [alias, setAlias] = useState("");
   const [shards, setShards] = useState("1");
@@ -149,12 +151,12 @@ export function CreateIndexView({ active }: { active: boolean }) {
             <div className="setting-row header"><span>Setting</span><span>Value</span><span /></div>
             <div className="setting-row">
               <span>number_of_shards</span>
-              <input value={shards} onChange={(e) => setShards(e.target.value)} />
+              <input type="number" min={1} value={shards} onChange={(e) => setShards(e.target.value)} />
               <span />
             </div>
             <div className="setting-row">
               <span>number_of_replicas</span>
-              <input value={replicas} onChange={(e) => setReplicas(e.target.value)} />
+              <input type="number" min={0} value={replicas} onChange={(e) => setReplicas(e.target.value)} />
               <span />
             </div>
             <div className="setting-row">

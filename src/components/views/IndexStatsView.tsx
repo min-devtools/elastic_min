@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Metric, Panel } from "../../ui/MetricPanel";
+import { ToolButton } from "../../ui/ToolButton";
+import { Icon } from "../../ui/Icon";
 import { Kv } from "../../ui/Kv";
 import { Badge } from "../../ui/Badge";
 import { HealthPill } from "../../ui/Pills";
@@ -22,7 +24,7 @@ interface ShardRow {
 export function IndexStatsView({ active }: { active: boolean }) {
   const conn = useActiveConnection();
   const indices = useIndices();
-  const { activeIndex } = useApp();
+  const activeIndex = useApp((s) => s.activeIndex);
   const index = activeIndex ?? conn?.defaultIndex ?? "";
   const info = indices.data?.find((i) => i.index === index);
   const { sort: shardSort, cycleSort: cycleShardSort } = useSort();
@@ -66,7 +68,14 @@ export function IndexStatsView({ active }: { active: boolean }) {
           <Badge>{stats.isFetching ? "refreshing…" : "live · 10s"}</Badge>
         </div>
         {!index && <div className="empty-note">Pick an index in the sidebar, then open Index Stats.</div>}
-        {stats.error && <div className="err-note">{String(stats.error)}</div>}
+        {stats.error && (
+          <div className="err-note">
+            {String(stats.error)}
+            <ToolButton title="Reload index stats" onClick={() => void stats.refetch()}>
+              <Icon name="refresh" /> Retry
+            </ToolButton>
+          </div>
+        )}
         <div className="dense-grid">
           <Metric label="Documents" value={primaries ? formatDocCount(primaries.docs?.count ?? 0) : "—"} />
           <Metric label="Deleted docs" value={primaries ? formatDocCount(primaries.docs?.deleted ?? 0) : "—"} />

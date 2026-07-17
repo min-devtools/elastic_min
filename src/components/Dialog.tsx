@@ -7,12 +7,34 @@ export function Dialog() {
   const dialog = useApp((s) => s.dialog);
   const [value, setValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const confirmRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (dialog?.kind === "prompt") {
       setValue(dialog.defaultValue ?? "");
       requestAnimationFrame(() => inputRef.current?.select());
     }
+    if (dialog?.kind === "confirm") {
+      requestAnimationFrame(() => confirmRef.current?.focus());
+    }
+  }, [dialog]);
+
+  // Esc/Enter work anywhere in the dialog, not just inside the prompt input
+  useEffect(() => {
+    if (!dialog) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        dialog.resolve(null);
+      }
+      if (e.key === "Enter" && dialog.kind === "confirm") {
+        e.preventDefault();
+        dialog.resolve("1");
+      }
+    };
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
   }, [dialog]);
 
   if (!dialog) return null;
@@ -25,7 +47,7 @@ export function Dialog() {
 
   return (
     <div className="modal" onMouseDown={(e) => { if (e.target === e.currentTarget) cancel(); }}>
-      <div className="prompt-dialog">
+      <div className="prompt-dialog" role="dialog" aria-modal="true" aria-label={dialog.title}>
         <strong>{dialog.title}</strong>
         {dialog.message && <p className="prompt-dialog-msg">{dialog.message}</p>}
         {dialog.kind === "prompt" && (
@@ -45,6 +67,7 @@ export function Dialog() {
         <div className="prompt-dialog-foot">
           <ToolButton onClick={cancel}>Cancel</ToolButton>
           <ToolButton
+            ref={confirmRef}
             variant={dialog.danger ? "danger" : "primary"}
             disabled={dialog.kind === "prompt" && !value.trim()}
             onClick={submit}

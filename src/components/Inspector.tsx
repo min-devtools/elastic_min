@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Kv } from "../ui/Kv";
 import { MiniTabs } from "../ui/MiniTabs";
@@ -19,23 +19,34 @@ export function Inspector() {
   const [diffOpen, setDiffOpen] = useState(false);
   const conn = useActiveConnection();
   const queryClient = useQueryClient();
-  const { selectedDoc, selectDoc, focusField, showToast } = useApp();
+  const selectedDoc = useApp((s) => s.selectedDoc);
+  const selectDoc = useApp((s) => s.selectDoc);
+  const focusField = useApp((s) => s.focusField);
+  const showToast = useApp((s) => s.showToast);
+  const setInspectorDirty = useApp((s) => s.setInspectorDirty);
   const vimStatusRef = useRef<HTMLSpanElement>(null);
 
   // reload editor when another document is selected
   useEffect(() => {
-    const json = selectedDoc ? JSON.stringify(selectedDoc._source, null, 2) : "";
+    const json = selectedDoc ? JSON.stringify(selectedDoc._source ?? {}, null, 2) : "";
     setDraft(json);
     setOriginal(json);
   }, [selectedDoc]);
 
   const dirty = draft !== original;
-  let draftValid = true;
-  try {
-    if (draft.trim()) JSON.parse(draft);
-  } catch {
-    draftValid = false;
-  }
+  // row clicks check this before discarding the draft
+  useEffect(() => {
+    setInspectorDirty(dirty);
+  }, [dirty, setInspectorDirty]);
+
+  const draftValid = useMemo(() => {
+    try {
+      if (draft.trim()) JSON.parse(draft);
+      return true;
+    } catch {
+      return false;
+    }
+  }, [draft]);
 
   const save = async () => {
     if (!conn || !selectedDoc) return;

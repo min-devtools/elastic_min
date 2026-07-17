@@ -38,7 +38,15 @@ function draftFrom(conn: Connection | null): Connection {
 
 export function ConnectionView({ active }: { active: boolean }) {
   const queryClient = useQueryClient();
-  const { connections, editingConnId, saveConnection, setActiveConn, openTab, closeTab, setEditingConn, showToast } = useApp();
+  const connections = useApp((s) => s.connections);
+  const editingConnId = useApp((s) => s.editingConnId);
+  const saveConnection = useApp((s) => s.saveConnection);
+  const setActiveConn = useApp((s) => s.setActiveConn);
+  const openTab = useApp((s) => s.openTab);
+  const closeTab = useApp((s) => s.closeTab);
+  const setEditingConn = useApp((s) => s.setEditingConn);
+  const showToast = useApp((s) => s.showToast);
+  const openDialog = useApp((s) => s.openDialog);
   const editing = useMemo(
     () => connections.find((c) => c.id === editingConnId) ?? null,
     [connections, editingConnId],
@@ -112,6 +120,17 @@ export function ConnectionView({ active }: { active: boolean }) {
 
   const save = async () => {
     const ok = await runHandshake();
+    if (!ok) {
+      // don't silently activate a broken connection — every panel would start erroring
+      const proceed = await openDialog({
+        kind: "confirm",
+        title: "Handshake failed",
+        message: "Some checks failed — the endpoint may be unreachable or misconfigured. Save and activate anyway?",
+        confirmLabel: "Save anyway",
+        danger: true,
+      });
+      if (proceed === null) return;
+    }
     saveConnection(draft);
     setActiveConn(draft.id);
     void queryClient.invalidateQueries();

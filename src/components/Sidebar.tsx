@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 import { Badge } from "../ui/Badge";
 import { IndexDot } from "../ui/Pills";
 import { ContextMenu, type ContextMenuItem } from "../ui/ContextMenu";
@@ -8,6 +7,7 @@ import { useActiveConnection, useClusterHealth, useIndices } from "../lib/querie
 import { formatDocCount } from "../lib/format";
 import type { TabKind } from "../lib/types";
 import { Icon, type IconName } from "../ui/Icon";
+import { pressable } from "../ui/pressable";
 
 const WORKSPACE_NAV: { kind: TabKind; icon: IconName; iconClass: string; label: string; meta?: string }[] = [
   { kind: "welcome", icon: "sparkles", iconClass: "soft-blue", label: "Welcome" },
@@ -31,33 +31,77 @@ export function Sidebar() {
   const conn = useActiveConnection();
   const health = useClusterHealth();
   const indices = useIndices();
-  const queryClient = useQueryClient();
-  const {
-    connections, activeConnId, setActiveConn, deleteConnection, setEditingConn,
-    tabs, activeTabId, openTab, activeIndex, setActiveIndex, showToast,
-    savedQueries, deleteSavedQuery, renameSavedQuery, newQueryTab, history, openDialog,
-    indexRecency,
-  } = useApp();
+  const connections = useApp((s) => s.connections);
+  const activeConnId = useApp((s) => s.activeConnId);
+  const setActiveConn = useApp((s) => s.setActiveConn);
+  const deleteConnection = useApp((s) => s.deleteConnection);
+  const setEditingConn = useApp((s) => s.setEditingConn);
+  const activeKind = useApp((s) => s.tabs.find((t) => t.id === s.activeTabId)?.kind);
+  const openTab = useApp((s) => s.openTab);
+  const activeIndex = useApp((s) => s.activeIndex);
+  const setActiveIndex = useApp((s) => s.setActiveIndex);
+  const showToast = useApp((s) => s.showToast);
+  const savedQueries = useApp((s) => s.savedQueries);
+  const deleteSavedQuery = useApp((s) => s.deleteSavedQuery);
+  const renameSavedQuery = useApp((s) => s.renameSavedQuery);
+  const newQueryTab = useApp((s) => s.newQueryTab);
+  const historyCount = useApp((s) => s.history.length);
+  const openDialog = useApp((s) => s.openDialog);
+  const indexRecency = useApp((s) => s.indexRecency);
 
-  const activeKind = tabs.find((t) => t.id === activeTabId)?.kind;
   const q = filter.trim().toLowerCase();
-  const indexList = (indices.data ?? [])
-    .filter((i) => !q || i.index.includes(q))
-    .sort((a, b) => {
-      const ai = indexRecency.indexOf(a.index);
-      const bi = indexRecency.indexOf(b.index);
-      if (ai === -1 && bi === -1) return 0;
-      if (ai === -1) return 1;
-      if (bi === -1) return -1;
-      return ai - bi;
-    });
+  const indexList = useMemo(
+    () =>
+      (indices.data ?? [])
+        .filter((i) => !q || i.index.includes(q))
+        .sort((a, b) => {
+          const ai = indexRecency.indexOf(a.index);
+          const bi = indexRecency.indexOf(b.index);
+          if (ai === -1 && bi === -1) return 0;
+          if (ai === -1) return 1;
+          if (bi === -1) return -1;
+          return ai - bi;
+        }),
+    [indices.data, q, indexRecency],
+  );
   const SIDEBAR_CAP = 5;
   const shownIndexes = q ? indexList.slice(0, 30) : indexList.slice(0, SIDEBAR_CAP);
   const hiddenIndexCount = q ? 0 : Math.max(0, indexList.length - SIDEBAR_CAP);
   const filteredSavedQueries = savedQueries.filter((sq) => !q || sq.name.toLowerCase().includes(q));
   const shownSavedQueries = filteredSavedQueries.slice(0, SIDEBAR_CAP);
   const hiddenSavedQueryCount = Math.max(0, filteredSavedQueries.length - SIDEBAR_CAP);
-  const aliasCount = new Set((indices.data ?? []).flatMap((i) => i.aliases)).size;
+  const aliasCount = useMemo(
+    () => new Set((indices.data ?? []).flatMap((i) => i.aliases)).size,
+    [indices.data],
+  );
+
+  const confirmDeleteConnection = async (id: string) => {
+    const c = connections.find((x) => x.id === id);
+    const ok = await openDialog({
+      kind: "confirm",
+      title: "Remove connection?",
+      message: `"${c?.name ?? id}" and its stored credentials will be deleted.`,
+      confirmLabel: "Remove",
+      danger: true,
+    });
+    if (ok === null) return;
+    deleteConnection(id);
+    showToast("Connection removed", "Saved connection deleted from this workspace.");
+  };
+
+  const confirmDeleteSavedQuery = async (id: string) => {
+    const sq = savedQueries.find((x) => x.id === id);
+    const ok = await openDialog({
+      kind: "confirm",
+      title: "Delete saved query?",
+      message: `"${sq?.name ?? id}" will be removed permanently.`,
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (ok === null) return;
+    deleteSavedQuery(id);
+    showToast("Saved query deleted", "Removed from this workspace.");
+  };
 
   const connMenuItems: ContextMenuItem[] = connMenu
     ? [
@@ -65,10 +109,8 @@ export function Sidebar() {
           icon: "plug",
           label: "Connect",
           strong: true,
-          onClick: () => {
-            setActiveConn(connMenu.id);
-            void queryClient.invalidateQueries();
-          },
+          // conn id is part of every queryKey — switching refetches naturally
+          onClick: () => setActiveConn(connMenu.id),
         },
         {
           icon: "pencil",
@@ -81,10 +123,7 @@ export function Sidebar() {
         {
           icon: "trash",
           label: "Remove",
-          onClick: () => {
-            deleteConnection(connMenu.id);
-            showToast("Connection removed", "Saved connection deleted from this workspace.");
-          },
+          onClick: () => void confirmDeleteConnection(connMenu.id),
         },
       ]
     : [];
@@ -108,6 +147,10 @@ export function Sidebar() {
               setEditingConn(null);
               openTab("connection");
             }}
+            {...pressable(() => {
+              setEditingConn(null);
+              openTab("connection");
+            })}
           >
             <Icon name="plus" className="soft-blue" /><span>New Connection</span><Badge>setup</Badge>
           </div>
@@ -115,10 +158,8 @@ export function Sidebar() {
             <div
               key={c.id}
               className={`nav-item ${c.id === activeConnId ? "active" : ""}`}
-              onClick={() => {
-                setActiveConn(c.id);
-                void queryClient.invalidateQueries();
-              }}
+              onClick={() => setActiveConn(c.id)}
+              {...pressable(() => setActiveConn(c.id))}
               onContextMenu={(e) => {
                 e.preventDefault();
                 setConnMenu({ x: e.clientX, y: e.clientY, id: c.id });
@@ -140,12 +181,13 @@ export function Sidebar() {
               key={item.kind}
               className={`nav-item ${activeKind === item.kind ? "active" : ""}`}
               onClick={() => openTab(item.kind)}
+              {...pressable(() => openTab(item.kind))}
             >
               <Icon name={item.icon} className={item.iconClass} />
               <span>{item.label}</span>
               <span>
                 {item.kind === "history"
-                  ? history.length || ""
+                  ? historyCount || ""
                   : item.meta?.startsWith("⌘")
                     ? <span className="kbd">{item.meta}</span>
                     : item.meta ?? ""}
@@ -163,6 +205,7 @@ export function Sidebar() {
                 className="nav-item"
                 title={`${sq.method} ${sq.path}`}
                 onClick={() => newQueryTab({ method: sq.method, path: sq.path, body: sq.body })}
+                {...pressable(() => newQueryTab({ method: sq.method, path: sq.path, body: sq.body }))}
                 onContextMenu={(e) => {
                   e.preventDefault();
                   setQueryMenu({ x: e.clientX, y: e.clientY, id: sq.id });
@@ -193,6 +236,7 @@ export function Sidebar() {
               key={i.index}
               className={`index-item ${i.index === activeIndex ? "active" : ""}`}
               onClick={() => setActiveIndex(i.index)}
+              {...pressable(() => setActiveIndex(i.index))}
               onDoubleClick={() => {
                 setActiveIndex(i.index);
                 openTab("docs");
@@ -279,10 +323,7 @@ export function Sidebar() {
             {
               icon: "trash",
               label: "Delete",
-              onClick: () => {
-                deleteSavedQuery(queryMenu.id);
-                showToast("Saved query deleted", "Removed from this workspace.");
-              },
+              onClick: () => void confirmDeleteSavedQuery(queryMenu.id),
             },
           ]}
         />

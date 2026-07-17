@@ -1,16 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Editor, { type OnMount } from "@monaco-editor/react";
-import { initVimMode } from "monaco-vim";
 import { ToolButton } from "../../ui/ToolButton";
 import { LoadingBar } from "../../ui/LoadingBar";
 import { StatusDot } from "../../ui/StatusDot";
 import { Icon } from "../../ui/Icon";
 import { useApp } from "../../store";
 import { useActiveConnection, useMappingFields } from "../../lib/queries";
-import { MONACO_THEME, setCompletionFields } from "../../lib/monaco";
+import { loadVimMode, MONACO_THEME, setCompletionFields } from "../../lib/monaco";
 import { startResize } from "../ResizeHandles";
 import { ResultsPanel } from "./ResultsPanel";
-import { runQueryTab, saveActiveQuery } from "../../lib/runQuery";
+import { copyActiveQueryAsCurl, runQueryTab, saveActiveQuery } from "../../lib/runQuery";
 
 const METHODS = ["GET", "POST", "PUT", "DELETE", "HEAD"];
 
@@ -42,9 +41,13 @@ export function QueryView({ tabId, active }: { tabId: string; active: boolean })
 
   // attach/detach vim mode when the setting flips (and clean up on unmount)
   useEffect(() => {
-    const editor = editorRef.current;
-    if (vimMode && editor && !vimRef.current) {
-      vimRef.current = initVimMode(editor, vimStatusRef.current);
+    let cancelled = false;
+    if (vimMode && editorRef.current && !vimRef.current) {
+      void loadVimMode().then((initVimMode) => {
+        if (!cancelled && editorRef.current && !vimRef.current) {
+          vimRef.current = initVimMode(editorRef.current, vimStatusRef.current);
+        }
+      });
     }
     if (!vimMode && vimRef.current) {
       vimRef.current.dispose();
@@ -52,19 +55,23 @@ export function QueryView({ tabId, active }: { tabId: string; active: boolean })
       if (vimStatusRef.current) vimStatusRef.current.textContent = "";
     }
     return () => {
+      cancelled = true;
       vimRef.current?.dispose();
       vimRef.current = null;
     };
   }, [vimMode]);
 
-  if (!qt) return null;
+  // parsed per body change, not per render — large bulk bodies make this expensive
+  const jsonValid = useMemo(() => {
+    try {
+      if (qt?.body.trim()) JSON.parse(qt.body);
+      return true;
+    } catch {
+      return false;
+    }
+  }, [qt?.body]);
 
-  let jsonValid = true;
-  try {
-    if (qt.body.trim()) JSON.parse(qt.body);
-  } catch {
-    jsonValid = false;
-  }
+  if (!qt) return null;
 
   // same JSON tools as requests_min's JsonEditor — shared .json-editor-tools chrome
   const transform = (pretty: boolean) => {
@@ -93,7 +100,11 @@ export function QueryView({ tabId, active }: { tabId: string; active: boolean })
       void runQueryTab(tabId);
     });
     if (useApp.getState().vimMode && !vimRef.current) {
-      vimRef.current = initVimMode(editor, vimStatusRef.current);
+      void loadVimMode().then((initVimMode) => {
+        if (editorRef.current === editor && !vimRef.current) {
+          vimRef.current = initVimMode(editor, vimStatusRef.current);
+        }
+      });
     }
   };
 
@@ -131,6 +142,14 @@ export function QueryView({ tabId, active }: { tabId: string; active: boolean })
             </ToolButton>
             <ToolButton iconOnly title="Save query (⌘S)" aria-label="Save query" onClick={saveActiveQuery}>
               <Icon name="save" />
+            </ToolButton>
+            <ToolButton
+              iconOnly
+              title="Copy as curl"
+              aria-label="Copy as curl"
+              onClick={() => void copyActiveQueryAsCurl()}
+            >
+              <Icon name="copy" />
             </ToolButton>
           </div>
           {/* pinned to the bottom edge of the head row; overlay, never a layout child (see .editor-head) */}

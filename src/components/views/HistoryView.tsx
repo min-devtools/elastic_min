@@ -8,15 +8,20 @@ import { sortRows, useSort } from "../../lib/useSort";
 import type { HistoryEntry } from "../../lib/types";
 
 function timeOf(at: number): string {
+  const diff = Date.now() - at;
+  if (diff < 60_000) return "just now";
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
   const d = new Date(at);
-  const today = new Date().toDateString() === d.toDateString();
-  return today
-    ? d.toLocaleTimeString("en-GB")
-    : `${d.toLocaleDateString("en-GB")} ${d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`;
+  return `${d.toLocaleDateString("en-GB")} ${d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`;
 }
 
 export function HistoryView({ active }: { active: boolean }) {
-  const { history, clearHistory, newQueryTab, showToast } = useApp();
+  const history = useApp((s) => s.history);
+  const clearHistory = useApp((s) => s.clearHistory);
+  const newQueryTab = useApp((s) => s.newQueryTab);
+  const showToast = useApp((s) => s.showToast);
+  const activeConnName = useApp((s) => s.connections.find((c) => c.id === s.activeConnId)?.name);
   const { sort, cycleSort } = useSort();
 
   const sorted = sortRows(history, sort, (e, col) => {
@@ -63,6 +68,7 @@ export function HistoryView({ active }: { active: boolean }) {
           <thead>
             <tr>
               <SortTh col="time" sort={sort} onSort={cycleSort}>Time</SortTh>
+              <th>Connection</th>
               <SortTh col="method" sort={sort} onSort={cycleSort}>Method</SortTh>
               <SortTh col="path" sort={sort} onSort={cycleSort}>Path</SortTh>
               <SortTh col="status" sort={sort} onSort={cycleSort}>Status</SortTh>
@@ -72,11 +78,23 @@ export function HistoryView({ active }: { active: boolean }) {
             </tr>
           </thead>
           <tbody>
-            {sorted.map((e) => (
-              <tr key={e.at + e.path} onClick={() => reopen(e, false)}>
-                <td><span className="cell-date">{timeOf(e.at)}</span></td>
+            {sorted.map((e, i) => (
+              <tr key={`${e.at}-${i}`} onClick={() => reopen(e, false)}>
+                <td><span className="cell-date" title={new Date(e.at).toLocaleString()}>{timeOf(e.at)}</span></td>
+                <td>
+                  <span
+                    className={e.connName && e.connName !== activeConnName ? "risk-high" : undefined}
+                    title={
+                      e.connName && e.connName !== activeConnName
+                        ? `Recorded on "${e.connName}" — re-running targets "${activeConnName ?? "no connection"}"`
+                        : undefined
+                    }
+                  >
+                    {e.connName ?? "—"}
+                  </span>
+                </td>
                 <td><span className="type-pill">{e.method}</span></td>
-                <td><span className="cell-id">{e.path}</span></td>
+                <td><span className="cell-id" title={e.body || undefined}>{e.path}</span></td>
                 <td>
                   <span className={e.status >= 400 || e.status === 0 ? "risk-high" : "risk-low"}>
                     {e.status || "ERR"}
@@ -92,7 +110,7 @@ export function HistoryView({ active }: { active: boolean }) {
               </tr>
             ))}
             {!history.length && (
-              <tr><td colSpan={7} style={{ color: "var(--text-3)" }}>no queries executed yet</td></tr>
+              <tr><td colSpan={8} style={{ color: "var(--text-3)" }}>no queries executed yet</td></tr>
             )}
           </tbody>
         </table>

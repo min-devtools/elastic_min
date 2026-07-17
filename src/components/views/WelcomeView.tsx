@@ -5,7 +5,9 @@ import { useActiveConnection } from "../../lib/queries";
 
 export function WelcomeView({ active }: { active: boolean }) {
   const conn = useActiveConnection();
-  const { openTab, setEditingConn, newQueryTab } = useApp();
+  const openTab = useApp((s) => s.openTab);
+  const setEditingConn = useApp((s) => s.setEditingConn);
+  const newQueryTab = useApp((s) => s.newQueryTab);
 
   const newConnection = () => {
     setEditingConn(null);

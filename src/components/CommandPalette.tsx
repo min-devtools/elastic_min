@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useApp } from "../store";
+import { closeTabWithConfirm, useApp } from "../store";
 import { useIndices } from "../lib/queries";
-import { runActiveQuery } from "../lib/runQuery";
+import { copyActiveQueryAsCurl, runActiveQuery } from "../lib/runQuery";
 import { Icon, type IconName } from "../ui/Icon";
 
 interface Command {
@@ -11,25 +11,44 @@ interface Command {
   action: () => void;
 }
 
+/** True when q's characters appear in order inside label ("qq" → "Quick Query"). */
+function fuzzyMatch(q: string, label: string): boolean {
+  let i = 0;
+  for (const ch of label) {
+    if (ch === q[i]) i++;
+    if (i >= q.length) return true;
+  }
+  return q.length === 0;
+}
+
+const RESULT_CAP = 30;
+
 export function CommandPalette() {
   const [input, setInput] = useState("");
   const [cursor, setCursor] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const indices = useIndices();
-  const app = useApp();
+  const commandOpen = useApp((s) => s.commandOpen);
+  const setCommandOpen = useApp((s) => s.setCommandOpen);
+  const savedQueries = useApp((s) => s.savedQueries);
+  const connections = useApp((s) => s.connections);
+  const tabs = useApp((s) => s.tabs);
 
   useEffect(() => {
-    if (app.commandOpen) {
+    if (commandOpen) {
       setInput("");
       setCursor(0);
       requestAnimationFrame(() => inputRef.current?.focus());
     }
-  }, [app.commandOpen]);
+  }, [commandOpen]);
 
   const commands = useMemo<Command[]>(() => {
+    const app = useApp.getState();
     const base: Command[] = [
       { icon: "play", label: "Run current query", kbd: "⌘↵", action: runActiveQuery },
       { icon: "plus", label: "New query tab", kbd: "⌘N", action: () => app.newQueryTab() },
+      { icon: "copy", label: "Copy query as curl", action: () => void copyActiveQueryAsCurl() },
       { icon: "quick-query", label: "Open Quick Query builder", action: () => app.openTab("quick-query") },
       { icon: "plug", label: "New Elasticsearch connection", action: () => { app.setEditingConn(null); app.openTab("connection"); } },
       { icon: "docs", label: "Open Documents", kbd: "⌘D", action: () => app.openTab("docs") },
@@ -43,17 +62,25 @@ export function CommandPalette() {
       { icon: "history", label: "Open Query History", action: () => app.openTab("history") },
       { icon: "save", label: "Open Saved Queries", action: () => app.openTab("saved-queries") },
       { icon: "activity", label: "Index stats (active index)", action: () => app.openTab("index-stats") },
+      { icon: "x", label: "Close current tab", kbd: "⌘W", action: () => void closeTabWithConfirm(useApp.getState().activeTabId) },
       { icon: "moon", label: "Toggle theme", action: () => app.toggleTheme() },
       { icon: "keyboard", label: "Toggle vim mode", action: () => app.toggleVim() },
     ];
-    for (const sq of app.savedQueries) {
+    for (const t of tabs) {
+      base.push({
+        icon: t.icon,
+        label: `Go to tab: ${t.title}`,
+        action: () => app.activateTab(t.id),
+      });
+    }
+    for (const sq of savedQueries) {
       base.push({
         icon: "save",
         label: `Open saved query: ${sq.name}`,
         action: () => app.newQueryTab({ method: sq.method, path: sq.path, body: sq.body }),
       });
     }
-    for (const c of app.connections) {
+    for (const c of connections) {
       base.push({
         icon: "plug",
         label: `Switch connection: ${c.name}`,
@@ -71,17 +98,33 @@ export function CommandPalette() {
       });
     }
     return base;
-  }, [app, indices.data]);
+  }, [tabs, savedQueries, connections, indices.data]);
 
   const filtered = useMemo(() => {
     const q = input.trim().toLowerCase();
-    return (q ? commands.filter((c) => c.label.toLowerCase().includes(q)) : commands).slice(0, 12);
+    if (!q) return commands.slice(0, RESULT_CAP);
+    // substring matches rank above subsequence ("fuzzy") matches
+    return commands
+      .map((c) => {
+        const l = c.label.toLowerCase();
+        return { c, rank: l.includes(q) ? 0 : fuzzyMatch(q, l) ? 1 : -1 };
+      })
+      .filter((x) => x.rank >= 0)
+      .sort((a, b) => a.rank - b.rank)
+      .map((x) => x.c)
+      .slice(0, RESULT_CAP);
   }, [commands, input]);
 
-  if (!app.commandOpen) return null;
+  useEffect(() => {
+    listRef.current
+      ?.querySelector(".cmd.active")
+      ?.scrollIntoView({ block: "nearest" });
+  }, [cursor, filtered]);
+
+  if (!commandOpen) return null;
 
   const runCommand = (cmd: Command) => {
-    app.setCommandOpen(false);
+    setCommandOpen(false);
     cmd.action();
   };
 
@@ -89,7 +132,7 @@ export function CommandPalette() {
     <div
       className="command"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) app.setCommandOpen(false);
+        if (e.target === e.currentTarget) setCommandOpen(false);
       }}
     >
       <div className="palette">
@@ -111,10 +154,10 @@ export function CommandPalette() {
               setCursor((c) => Math.max(0, c - 1));
             }
             if (e.key === "Enter" && filtered[cursor]) runCommand(filtered[cursor]);
-            if (e.key === "Escape") app.setCommandOpen(false);
+            if (e.key === "Escape") setCommandOpen(false);
           }}
         />
-        <div className="cmd-list">
+        <div className="cmd-list" ref={listRef}>
           {filtered.map((cmd, i) => (
             <div
               key={cmd.label}

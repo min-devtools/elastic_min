@@ -6,10 +6,10 @@ import { Badge } from "../../ui/Badge";
 import { Icon } from "../../ui/Icon";
 import { SortTh } from "../../ui/SortTh";
 import { Combobox } from "../../ui/Combobox";
-import { useApp } from "../../store";
+import { selectDocWithConfirm, useApp } from "../../store";
 import { useActiveConnection, useIndices, useMappingFields } from "../../lib/queries";
 import { esJson } from "../../lib/es";
-import { formatValue, getPath, valueClass } from "../../lib/format";
+import { formatDocCount, formatValue, getPath, valueClass } from "../../lib/format";
 import type { EsHit } from "../../lib/types";
 
 const PAGE_SIZE = 50;
@@ -18,7 +18,9 @@ type SortDir = "desc" | "asc";
 
 export function DocsView({ tabId, active }: { tabId: string; active: boolean }) {
   const conn = useActiveConnection();
-  const { selectedDoc, selectDoc, showToast, setDocsTabIndex } = useApp();
+  const selectedDoc = useApp((s) => s.selectedDoc);
+  const showToast = useApp((s) => s.showToast);
+  const setDocsTabIndex = useApp((s) => s.setDocsTabIndex);
   const dt = useApp((s) => s.docsTabs[tabId]);
   const indices = useIndices();
   const index = dt?.index ?? "";
@@ -67,7 +69,7 @@ export function DocsView({ tabId, active }: { tabId: string; active: boolean }) 
 
   const rawColumns = useMemo(() => {
     const cols = new Set<string>();
-    for (const h of hits.slice(0, 20)) Object.keys(h._source).forEach((k) => cols.add(k));
+    for (const h of hits.slice(0, 20)) Object.keys(h._source ?? {}).forEach((k) => cols.add(k));
     return [...cols]; // all columns — the grid scrolls horizontally
   }, [hits]);
   const columns = normalized ? paths : rawColumns;
@@ -110,7 +112,7 @@ export function DocsView({ tabId, active }: { tabId: string; active: boolean }) 
             onChange={(v) => setDocsTabIndex(tabId, v)}
           />
           {applied && <span>/ {applied}</span>}
-          <Badge>{search.isFetching ? "loading…" : total ? `${total} docs` : ""}</Badge>
+          <Badge>{search.isFetching ? "loading…" : total ? `${formatDocCount(total)} docs` : ""}</Badge>
         </div>
         <div className="seg">
           <ToolButton
@@ -158,7 +160,14 @@ export function DocsView({ tabId, active }: { tabId: string; active: boolean }) 
         </div>
       </div>
       <div className="result-grid">
-        {search.error && <div className="err-note">{String(search.error)}</div>}
+        {search.error && (
+          <div className="err-note">
+            {String(search.error)}
+            <ToolButton title="Retry the search" onClick={() => void search.refetch()}>
+              <Icon name="refresh" /> Retry
+            </ToolButton>
+          </div>
+        )}
         <table>
           <thead>
             <tr>
@@ -191,20 +200,24 @@ export function DocsView({ tabId, active }: { tabId: string; active: boolean }) 
           <tbody>
             {hits.map((h) => (
               <tr
-                key={h._id}
-                className={selectedDoc?._id === h._id ? "selected" : ""}
-                onClick={() => selectDoc(h)}
+                key={`${h._index}/${h._id}`}
+                className={
+                  selectedDoc && selectedDoc._index === h._index && selectedDoc._id === h._id
+                    ? "selected"
+                    : ""
+                }
+                onClick={() => void selectDocWithConfirm(h)}
               >
                 <td><span className="cell-id">{h._id}</span></td>
                 {columns.map((c) => {
-                  const v = getPath(h._source, c);
+                  const v = getPath(h._source ?? {}, c);
                   return (
                     <td
                       key={c}
                       title="Click: inspect · double-click: copy value"
                       onClick={(e) => {
                         e.stopPropagation();
-                        selectDoc(h, c);
+                        void selectDocWithConfirm(h, c);
                       }}
                       onDoubleClick={() => {
                         void writeText(formatValue(v));

@@ -15,18 +15,16 @@ import {
 export function AiChat() {
   const conn = useActiveConnection();
   const indices = useIndices();
-  const {
-    activeIndex,
-    aiProvider,
-    openTab,
-    showToast,
-    aiSessions,
-    activeAiSessionId,
-    newAiSession,
-    setActiveAiSession,
-    appendAiEntry,
-    deleteAiSession,
-  } = useApp();
+  const activeIndex = useApp((s) => s.activeIndex);
+  const aiProvider = useApp((s) => s.aiProvider);
+  const openTab = useApp((s) => s.openTab);
+  const showToast = useApp((s) => s.showToast);
+  const aiSessions = useApp((s) => s.aiSessions);
+  const activeAiSessionId = useApp((s) => s.activeAiSessionId);
+  const newAiSession = useApp((s) => s.newAiSession);
+  const setActiveAiSession = useApp((s) => s.setActiveAiSession);
+  const appendAiEntry = useApp((s) => s.appendAiEntry);
+  const deleteAiSession = useApp((s) => s.deleteAiSession);
   const mapping = useMappingFields(activeIndex);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);

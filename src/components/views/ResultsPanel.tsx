@@ -5,7 +5,7 @@ import { Badge } from "../../ui/Badge";
 import { JsonResponseViewer } from "../../ui/JsonResponseViewer";
 import { Icon } from "../../ui/Icon";
 import { SortTh } from "../../ui/SortTh";
-import { useApp } from "../../store";
+import { selectDocWithConfirm, useApp } from "../../store";
 import { useActiveConnection } from "../../lib/queries";
 import { esJson } from "../../lib/es";
 import { formatValue, getPath, valueClass } from "../../lib/format";
@@ -15,7 +15,9 @@ import { sortRows, useSort } from "../../lib/useSort";
 export function ResultsPanel({ tabId }: { tabId: string }) {
   const conn = useActiveConnection();
   const qt = useApp((s) => s.queryTabs[tabId]);
-  const { selectDoc, selectedDoc, showToast, openDialog } = useApp();
+  const selectedDoc = useApp((s) => s.selectedDoc);
+  const showToast = useApp((s) => s.showToast);
+  const openDialog = useApp((s) => s.openDialog);
   const [paths, setPaths] = useState<string[]>([]);
   const [pathInput, setPathInput] = useState("");
   // raw top-level columns by default; normalized JSON-path view is opt-in
@@ -29,30 +31,49 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
 
   const result = qt?.result ?? null;
   const hits = result?.hits ?? null;
+  const showJson = view === "json" || !hits;
 
-  // same Monaco read-only viewer as the right dock / requests_min response pane
+  // docs across indices can share an _id — selection/keys must be index-qualified
+  const keyOf = (h: { _index: string; _id: string }) => `${h._index}/${h._id}`;
+
+  // same Monaco read-only viewer as the right dock / requests_min response pane —
+  // only stringified when the JSON view is actually shown (10MB+ responses freeze otherwise)
   const rawJson = useMemo(
-    () => (typeof result?.raw === "string" ? result.raw : JSON.stringify(result?.raw ?? null, null, 2)),
-    [result?.raw],
+    () =>
+      !showJson
+        ? ""
+        : typeof result?.raw === "string"
+          ? result.raw
+          : JSON.stringify(result?.raw ?? null, null, 2),
+    [result?.raw, showJson],
   );
 
   const rawColumns = useMemo(() => {
     const cols = new Set<string>();
     for (const h of (hits ?? []).slice(0, 30)) {
-      Object.keys(h._source).forEach((k) => cols.add(k));
+      Object.keys(h._source ?? {}).forEach((k) => cols.add(k));
     }
     return [...cols]; // all columns — the grid scrolls horizontally
+  }, [hits]);
+
+  // lowercase haystack built once per result, not per filter keystroke
+  const haystacks = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const h of hits ?? []) {
+      m.set(keyOf(h), `${h._id} ${JSON.stringify(h._source ?? {})}`.toLowerCase());
+    }
+    return m;
   }, [hits]);
 
   const filteredHits = useMemo(() => {
     const query = filter.trim().toLowerCase();
     if (!query || !hits) return hits;
-    return hits.filter((hit) => `${hit._id} ${JSON.stringify(hit._source)}`.toLowerCase().includes(query));
-  }, [hits, filter]);
+    return hits.filter((hit) => haystacks.get(keyOf(hit))?.includes(query));
+  }, [hits, filter, haystacks]);
 
   // client-side sort over the loaded hits
   const sortedHits = useMemo(
-    () => (filteredHits ? sortRows(filteredHits, sort, (h, col) => (col === "_id" ? h._id : getPath(h._source, col))) : filteredHits),
+    () => (filteredHits ? sortRows(filteredHits, sort, (h, col) => (col === "_id" ? h._id : getPath(h._source ?? {}, col))) : filteredHits),
     [filteredHits, sort],
   );
 
@@ -65,7 +86,7 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
     setPage(1);
     rawCycleSort(col);
   };
-  const allPageSelected = paged.length > 0 && paged.every((h) => selected.has(h._id));
+  const allPageSelected = paged.length > 0 && paged.every((h) => selected.has(keyOf(h)));
 
   const columns = normalized ? paths : rawColumns;
 
@@ -92,7 +113,7 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
 
   const bulkCopy = async () => {
     if (!hits || selected.size === 0) return;
-    const targets = hits.filter((h) => selected.has(h._id));
+    const targets = hits.filter((h) => selected.has(keyOf(h)));
     await writeText(JSON.stringify(targets, null, 2));
     showToast("Copied", `${targets.length} document(s) copied as JSON.`);
   };
@@ -107,12 +128,26 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
       danger: true,
     });
     if (!ok) return;
-    const targets = hits.filter((h) => selected.has(h._id));
+    const targets = hits.filter((h) => selected.has(keyOf(h)));
     const ndjson =
       targets.map((h) => JSON.stringify({ delete: { _index: h._index, _id: h._id } })).join("\n") + "\n";
     try {
-      await esJson(conn, "POST", "/_bulk?refresh=true", ndjson);
-      showToast("Documents deleted", `${targets.length} document(s) removed.`);
+      // _bulk returns HTTP 200 even when items fail — check per-item statuses
+      const res = await esJson<{
+        errors?: boolean;
+        items?: { delete?: { _id?: string; status?: number; error?: { reason?: string } } }[];
+      }>(conn, "POST", "/_bulk?refresh=true", ndjson);
+      const failed = (res.items ?? []).filter((it) => (it.delete?.status ?? 0) >= 300);
+      if (res.errors || failed.length > 0) {
+        const first = failed[0]?.delete;
+        showToast(
+          "Bulk delete incomplete",
+          `${failed.length}/${targets.length} failed${first?.error?.reason ? ` — ${first.error.reason}` : ""}.`,
+          "err",
+        );
+      } else {
+        showToast("Documents deleted", `${targets.length} document(s) removed.`);
+      }
       setSelected(new Set());
       void runQueryTab(tabId);
     } catch (err) {
@@ -191,7 +226,14 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
         </div>}
       </div>
       <div className="result-grid">
-        {result?.error && <div className="err-note">{result.error}</div>}
+        {result?.error && (
+          <div className="err-note">
+            {result.error}
+            <ToolButton title="Run the query again" onClick={() => void runQueryTab(tabId)}>
+              <Icon name="refresh" /> Retry
+            </ToolButton>
+          </div>
+        )}
         {!result?.error && view === "table" && hits && (
           <table>
             <thead>
@@ -205,7 +247,7 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
                       const checked = e.target.checked;
                       setSelected((prev) => {
                         const next = new Set(prev);
-                        paged.forEach((h) => (checked ? next.add(h._id) : next.delete(h._id)));
+                        paged.forEach((h) => (checked ? next.add(keyOf(h)) : next.delete(keyOf(h))));
                         return next;
                       });
                     }}
@@ -243,28 +285,33 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
             <tbody>
               {paged.map((h) => (
                 <tr
-                  key={h._id}
-                  className={selectedDoc?._id === h._id ? "selected" : ""}
-                  onClick={() => selectDoc(h)}
+                  key={keyOf(h)}
+                  className={
+                    selectedDoc && keyOf(selectedDoc) === keyOf(h) ? "selected" : ""
+                  }
+                  onClick={() => void selectDocWithConfirm(h)}
                 >
                   <td onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
                       className="row-check"
-                      checked={selected.has(h._id)}
-                      onChange={(e) => toggleRow(h._id, e.target.checked)}
+                      checked={selected.has(keyOf(h))}
+                      onChange={(e) => toggleRow(keyOf(h), e.target.checked)}
                     />
                   </td>
                   <td><span className="cell-id">{h._id}</span></td>
                   {columns.map((c) => {
-                    const value = getPath(h._source, c);
+                    const value = getPath(h._source ?? {}, c);
                     return (
                       <td
                         key={c}
-                        title="Click: copy value"
+                        title="Click: inspect · double-click: copy value"
                         onClick={(e) => {
                           e.stopPropagation();
-                          selectDoc(h, c);
+                          void selectDocWithConfirm(h, c);
+                        }}
+                        onDoubleClick={(e) => {
+                          e.stopPropagation();
                           void writeText(formatValue(value));
                           showToast("Copied", `${c} value copied.`);
                         }}

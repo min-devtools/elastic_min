@@ -28,6 +28,7 @@ export function useMappingFields(index: string | null) {
     queryKey: ["mapping", conn?.id, index],
     queryFn: () => fetchMappingFields(conn!, index!),
     enabled: !!conn && !!index,
+    staleTime: 30_000,
   });
 }
 
@@ -97,5 +98,6 @@ export function useRawMapping(index: string | null) {
       return { mapping, settings };
     },
     enabled: !!conn && !!index,
+    staleTime: 30_000,
   });
 }

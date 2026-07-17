@@ -54,11 +54,23 @@ function FontSelect({
 }
 
 export function SettingsView({ active }: { active: boolean }) {
-  const {
-    theme, setTheme, compact, toggleCompact, vimMode, toggleVim,
-    editorFontSize, setEditorFontSize, uiFontSize, setUiFontSize, uiFont, setUiFont, editorFont, setEditorFont,
-    aiProvider, setAiProvider, showToast,
-  } = useApp();
+  const theme = useApp((s) => s.theme);
+  const setTheme = useApp((s) => s.setTheme);
+  const compact = useApp((s) => s.compact);
+  const toggleCompact = useApp((s) => s.toggleCompact);
+  const vimMode = useApp((s) => s.vimMode);
+  const toggleVim = useApp((s) => s.toggleVim);
+  const editorFontSize = useApp((s) => s.editorFontSize);
+  const setEditorFontSize = useApp((s) => s.setEditorFontSize);
+  const uiFontSize = useApp((s) => s.uiFontSize);
+  const setUiFontSize = useApp((s) => s.setUiFontSize);
+  const uiFont = useApp((s) => s.uiFont);
+  const setUiFont = useApp((s) => s.setUiFont);
+  const editorFont = useApp((s) => s.editorFont);
+  const setEditorFont = useApp((s) => s.setEditorFont);
+  const aiProvider = useApp((s) => s.aiProvider);
+  const setAiProvider = useApp((s) => s.setAiProvider);
+  const showToast = useApp((s) => s.showToast);
   const fonts = useSystemFonts();
   const fontList = fonts.data ?? [];
 

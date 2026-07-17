@@ -22,7 +22,7 @@ export interface EsHit {
   _index: string;
   _id: string;
   _score: number | null;
-  _source: Record<string, unknown>;
+  _source?: Record<string, unknown>;
   _version?: number;
   _seq_no?: number;
   _primary_term?: number;
@@ -105,5 +105,7 @@ export interface HistoryEntry {
   status: number;
   timeMs: number;
   hits: number | null;
+  connId?: string;
+  connName?: string;
 }
 import type { IconName } from "../ui/Icon";

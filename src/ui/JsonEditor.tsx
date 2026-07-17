@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import Editor, { type OnMount } from "@monaco-editor/react";
-import { initVimMode } from "monaco-vim";
-import { MONACO_THEME, monaco } from "../lib/monaco";
+import { loadVimMode, MONACO_THEME, monaco } from "../lib/monaco";
 import { useApp } from "../store";
 
 interface Props {
@@ -57,9 +56,13 @@ export function JsonEditor({ value, onChange, vimStatusRef, fontSize, lineNumber
 
   useEffect(() => {
     if (readOnly) return;
-    const editor = editorRef.current;
-    if (vimMode && editor && !vimRef.current) {
-      vimRef.current = initVimMode(editor, vimStatusRef?.current ?? null);
+    let cancelled = false;
+    if (vimMode && editorRef.current && !vimRef.current) {
+      void loadVimMode().then((initVimMode) => {
+        if (!cancelled && editorRef.current && !vimRef.current) {
+          vimRef.current = initVimMode(editorRef.current, vimStatusRef?.current ?? null);
+        }
+      });
     }
     if (!vimMode && vimRef.current) {
       vimRef.current.dispose();
@@ -67,6 +70,7 @@ export function JsonEditor({ value, onChange, vimStatusRef, fontSize, lineNumber
       if (vimStatusRef?.current) vimStatusRef.current.textContent = "";
     }
     return () => {
+      cancelled = true;
       vimRef.current?.dispose();
       vimRef.current = null;
     };
@@ -76,7 +80,11 @@ export function JsonEditor({ value, onChange, vimStatusRef, fontSize, lineNumber
     editorRef.current = editor;
     setMounted(true);
     if (!readOnly && useApp.getState().vimMode && !vimRef.current) {
-      vimRef.current = initVimMode(editor, vimStatusRef?.current ?? null);
+      void loadVimMode().then((initVimMode) => {
+        if (editorRef.current === editor && !vimRef.current) {
+          vimRef.current = initVimMode(editor, vimStatusRef?.current ?? null);
+        }
+      });
     }
   };
 

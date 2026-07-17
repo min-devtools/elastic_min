@@ -17,7 +17,11 @@ export function IndexesView({ active }: { active: boolean }) {
   const conn = useActiveConnection();
   const indices = useIndices();
   const queryClient = useQueryClient();
-  const { openTab, setActiveIndex, newQueryTab, showToast, openDialog } = useApp();
+  const openTab = useApp((s) => s.openTab);
+  const setActiveIndex = useApp((s) => s.setActiveIndex);
+  const newQueryTab = useApp((s) => s.newQueryTab);
+  const showToast = useApp((s) => s.showToast);
+  const openDialog = useApp((s) => s.openDialog);
   const [filter, setFilter] = useState("");
   const [menu, setMenu] = useState<{ x: number; y: number; index: string } | null>(null);
   const { sort, cycleSort } = useSort();
@@ -116,14 +120,21 @@ export function IndexesView({ active }: { active: boolean }) {
         />
         <Badge>{indices.data ? `${filtered.length} shown` : conn ? "loading…" : "no connection"}</Badge>
         <span style={{ color: "var(--text-3)" }}>
-          Click a row for actions. Filter all cluster indexes without leaving the workspace.
+          Click a row to browse documents · right-click for actions.
         </span>
         <ToolButton variant="primary" onClick={() => openTab("create-index")}>
           <Icon name="plus" /> Create index
         </ToolButton>
       </div>
       <div className="index-table-wrap">
-        {indices.error && <div className="err-note">{String(indices.error)}</div>}
+        {indices.error && (
+          <div className="err-note">
+            {String(indices.error)}
+            <ToolButton title="Reload the index list" onClick={() => void indices.refetch()}>
+              <Icon name="refresh" /> Retry
+            </ToolButton>
+          </div>
+        )}
         <table>
           <thead>
             <tr>
@@ -140,7 +151,11 @@ export function IndexesView({ active }: { active: boolean }) {
             {sorted.map((i) => (
               <tr
                 key={i.index}
-                onClick={(e) => setMenu({ x: e.clientX, y: e.clientY, index: i.index })}
+                title="Click: open Documents · right-click: more actions"
+                onClick={() => {
+                  setActiveIndex(i.index);
+                  openTab("docs");
+                }}
                 onContextMenu={(e) => {
                   e.preventDefault();
                   setMenu({ x: e.clientX, y: e.clientY, index: i.index });

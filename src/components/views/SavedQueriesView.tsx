@@ -13,7 +13,12 @@ function timeOf(at: number): string {
 }
 
 export function SavedQueriesView({ active }: { active: boolean }) {
-  const { savedQueries, newQueryTab, deleteSavedQuery, renameSavedQuery, showToast, openDialog } = useApp();
+  const savedQueries = useApp((s) => s.savedQueries);
+  const newQueryTab = useApp((s) => s.newQueryTab);
+  const deleteSavedQuery = useApp((s) => s.deleteSavedQuery);
+  const renameSavedQuery = useApp((s) => s.renameSavedQuery);
+  const showToast = useApp((s) => s.showToast);
+  const openDialog = useApp((s) => s.openDialog);
 
   const reopen = (q: SavedQuery) => newQueryTab({ method: q.method, path: q.path, body: q.body });
 
@@ -66,7 +71,15 @@ export function SavedQueriesView({ active }: { active: boolean }) {
                   <ToolButton
                     title="Delete"
                     aria-label="Delete saved query"
-                    onClick={() => {
+                    onClick={async () => {
+                      const ok = await openDialog({
+                        kind: "confirm",
+                        title: "Delete saved query?",
+                        message: `"${q.name}" will be removed permanently.`,
+                        confirmLabel: "Delete",
+                        danger: true,
+                      });
+                      if (ok === null) return;
                       deleteSavedQuery(q.id);
                       showToast("Saved query deleted", "Removed from this workspace.");
                     }}

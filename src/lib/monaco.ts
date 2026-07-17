@@ -97,4 +97,11 @@ monaco.languages.registerCompletionItemProvider("json", {
 
 loader.config({ monaco });
 
+// monaco-vim is only paid for when vim mode is actually enabled
+let vimModule: Promise<typeof import("monaco-vim")> | null = null;
+export function loadVimMode(): Promise<typeof import("monaco-vim").initVimMode> {
+  vimModule ??= import("monaco-vim");
+  return vimModule.then((m) => m.initVimMode);
+}
+
 export { monaco };
