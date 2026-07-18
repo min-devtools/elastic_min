@@ -31,13 +31,14 @@ export function startResize(
   const move = (e: PointerEvent) => {
     if (axis === "left" && main) {
       const rect = main.getBoundingClientRect();
-      const max = Math.min(430, rect.width - 760);
+      // narrow window can push rect.width - 760 below the min — keep max ≥ min
+      const max = Math.max(190, Math.min(430, rect.width - 760));
       const next = clamp(e.clientX - rect.left, 190, max);
       document.body.style.setProperty("--left-w", `${Math.round(next)}px`);
     }
     if (axis === "right" && main) {
       const rect = main.getBoundingClientRect();
-      const max = Math.min(700, rect.width - 760);
+      const max = Math.max(260, Math.min(700, rect.width - 760));
       const next = clamp(rect.right - e.clientX, 260, max);
       document.body.style.setProperty("--right-w", `${Math.round(next)}px`);
     }

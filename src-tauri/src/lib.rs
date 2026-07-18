@@ -127,9 +127,12 @@ async fn ai_chat(
 ) -> Result<String, String> {
     let url = format!("{}/chat/completions", endpoint.trim_end_matches('/'));
     let client = ai_client()?;
-    let res = client
-        .post(&url)
-        .bearer_auth(api_key)
+    let mut req = client.post(&url);
+    // keyless local providers (ollama, llama.cpp) reject a bare "Bearer " header
+    if !api_key.is_empty() {
+        req = req.bearer_auth(api_key);
+    }
+    let res = req
         .json(&serde_json::json!({ "model": model, "messages": messages }))
         .send()
         .await

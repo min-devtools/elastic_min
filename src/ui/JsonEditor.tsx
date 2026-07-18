@@ -45,7 +45,8 @@ export function JsonEditor({ value, onChange, vimStatusRef, fontSize, lineNumber
     }
     if (!hit) return;
     const line = hit.range.startLineNumber;
-    editor.revealLineInCenter(line);
+    // this effect re-runs per keystroke (value dep) — scrolling mid-edit would yank the viewport
+    if (!editor.hasTextFocus()) editor.revealLineInCenter(line);
     decoRef.current = editor.deltaDecorations([], [
       {
         range: new monaco.Range(line, 1, line, model.getLineMaxColumn(line)),

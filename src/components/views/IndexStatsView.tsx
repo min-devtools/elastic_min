@@ -118,8 +118,8 @@ export function IndexStatsView({ active }: { active: boolean }) {
                   case "node": return s.node;
                   default: return null;
                 }
-              }).map((s, i) => (
-                <tr key={i}>
+              }).map((s) => (
+                <tr key={`${s.shard}-${s.prirep}-${s.node ?? "unassigned"}`}>
                   <td>{s.shard}</td>
                   <td><span className="type-pill">{s.prirep === "p" ? "primary" : "replica"}</span></td>
                   <td>

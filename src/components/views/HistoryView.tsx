@@ -6,6 +6,7 @@ import { useApp } from "../../store";
 import { runQueryTab } from "../../lib/runQuery";
 import { sortRows, useSort } from "../../lib/useSort";
 import type { HistoryEntry } from "../../lib/types";
+import { pressable } from "../../ui/pressable";
 
 function timeOf(at: number): string {
   const diff = Date.now() - at;
@@ -79,7 +80,7 @@ export function HistoryView({ active }: { active: boolean }) {
           </thead>
           <tbody>
             {sorted.map((e, i) => (
-              <tr key={`${e.at}-${i}`} onClick={() => reopen(e, false)}>
+              <tr key={`${e.at}-${i}`} onClick={() => reopen(e, false)} {...pressable(() => reopen(e, false))}>
                 <td><span className="cell-date" title={new Date(e.at).toLocaleString()}>{timeOf(e.at)}</span></td>
                 <td>
                   <span

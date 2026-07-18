@@ -12,6 +12,7 @@ import { useApp } from "../../store";
 import { useActiveConnection, useIndices } from "../../lib/queries";
 import { formatDocCount } from "../../lib/format";
 import { sortRows, useSort } from "../../lib/useSort";
+import { pressable } from "../../ui/pressable";
 
 export function IndexesView({ active }: { active: boolean }) {
   const conn = useActiveConnection();
@@ -156,6 +157,10 @@ export function IndexesView({ active }: { active: boolean }) {
                   setActiveIndex(i.index);
                   openTab("docs");
                 }}
+                {...pressable(() => {
+                  setActiveIndex(i.index);
+                  openTab("docs");
+                })}
                 onContextMenu={(e) => {
                   e.preventDefault();
                   setMenu({ x: e.clientX, y: e.clientY, index: i.index });

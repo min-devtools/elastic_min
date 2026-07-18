@@ -3,6 +3,7 @@ import { Badge } from "../../ui/Badge";
 import { Icon } from "../../ui/Icon";
 import { useApp } from "../../store";
 import type { SavedQuery } from "../../lib/types";
+import { pressable } from "../../ui/pressable";
 
 function timeOf(at: number): string {
   const d = new Date(at);
@@ -47,7 +48,7 @@ export function SavedQueriesView({ active }: { active: boolean }) {
           </thead>
           <tbody>
             {savedQueries.map((q) => (
-              <tr key={q.id} onClick={() => reopen(q)}>
+              <tr key={q.id} onClick={() => reopen(q)} {...pressable(() => void reopen(q))}>
                 <td><span className="cell-id">{q.name}</span></td>
                 <td><span className="type-pill">{q.method}</span></td>
                 <td><span className="cell-id">{q.path}</span></td>

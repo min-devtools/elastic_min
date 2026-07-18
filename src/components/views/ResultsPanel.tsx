@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { ToolButton } from "../../ui/ToolButton";
 import { Badge } from "../../ui/Badge";
@@ -32,6 +32,12 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
   const result = qt?.result ?? null;
   const hits = result?.hits ?? null;
   const showJson = view === "json" || !hits;
+
+  // new result = new doc set — stale selections would make "Copy/Delete N" lie
+  useEffect(() => {
+    setSelected(new Set());
+    setPage(1);
+  }, [hits]);
 
   // docs across indices can share an _id — selection/keys must be index-qualified
   const keyOf = (h: { _index: string; _id: string }) => `${h._index}/${h._id}`;
