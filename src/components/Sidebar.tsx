@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Badge } from "../ui/Badge";
 import { IndexDot } from "../ui/Pills";
 import { ContextMenu, type ContextMenuItem } from "../ui/ContextMenu";
@@ -13,7 +13,7 @@ const WORKSPACE_NAV: { kind: TabKind; icon: IconName; iconClass: string; label: 
   { kind: "welcome", icon: "sparkles", iconClass: "soft-blue", label: "Welcome" },
   { kind: "query", icon: "query", iconClass: "soft-blue", label: "Query Editor", meta: "⌘↵" },
   { kind: "quick-query", icon: "quick-query", iconClass: "soft-green", label: "Quick Query", meta: "mapping" },
-  { kind: "docs", icon: "docs", iconClass: "soft-green", label: "Documents", meta: "⌘D" },
+  { kind: "docs", icon: "docs", iconClass: "soft-green", label: "Documents", meta: "⌘⇧D" },
   { kind: "indexes", icon: "indexes", iconClass: "soft-orange", label: "All Indexes" },
   { kind: "mapping", icon: "mapping", iconClass: "soft-blue", label: "Mapping" },
   { kind: "create-index", icon: "folder-plus", iconClass: "soft-green", label: "Create Index" },
@@ -37,6 +37,7 @@ export function Sidebar() {
   const deleteConnection = useApp((s) => s.deleteConnection);
   const setEditingConn = useApp((s) => s.setEditingConn);
   const setConnections = useApp((s) => s.setConnections);
+  const saveConnection = useApp((s) => s.saveConnection);
   // drag-reorder state for the Connections group — pattern matches redis_min Sidebar
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ id: string; before: boolean } | null>(null);
@@ -114,6 +115,41 @@ export function Sidebar() {
     showToast("Saved query deleted", "Removed from this workspace.");
   };
 
+  // ⌘E / ⌘D / ⌘⌫ on the active connection — see design-systems/SHORTCUTS.md
+  const editConn = (id: string) => {
+    setEditingConn(id);
+    openTab("connection");
+  };
+  const duplicateConn = (id: string) => {
+    const c = connections.find((x) => x.id === id);
+    if (!c) return;
+    const copy = { ...c, id: crypto.randomUUID(), name: `${c.name} copy` };
+    saveConnection(copy);
+    showToast("Connection duplicated", copy.name);
+  };
+
+  // WebKit (Tauri macOS) doesn't focus rows on click, so per-node onKeyDown won't fire.
+  // Listen globally and act on the active connection; stay out of inputs and open dialogs.
+  useEffect(() => {
+    if (!activeConnId) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (useApp.getState().dialog) return;
+      const el = document.activeElement as HTMLElement | null;
+      const editable = !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+      if (editable) return;
+      const mod = event.metaKey || event.ctrlKey;
+      if (!mod || event.shiftKey) return;
+      const key = event.key.toLowerCase();
+      if (key === "d") { event.preventDefault(); duplicateConn(activeConnId); }
+      else if (key === "e") { event.preventDefault(); editConn(activeConnId); }
+      // ⌘⌫ only — a plain Backspace outside inputs is too easy to hit by accident
+      else if (event.key === "Delete" || event.key === "Backspace") { event.preventDefault(); void confirmDeleteConnection(activeConnId); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeConnId, connections]);
+
   const connMenuItems: ContextMenuItem[] = connMenu
     ? [
         {
@@ -123,19 +159,9 @@ export function Sidebar() {
           // conn id is part of every queryKey — switching refetches naturally
           onClick: () => setActiveConn(connMenu.id),
         },
-        {
-          icon: "pencil",
-          label: "Edit connection",
-          onClick: () => {
-            setEditingConn(connMenu.id);
-            openTab("connection");
-          },
-        },
-        {
-          icon: "trash",
-          label: "Remove",
-          onClick: () => void confirmDeleteConnection(connMenu.id),
-        },
+        { icon: "pencil", label: "Edit connection", kbd: "⌘E", onClick: () => editConn(connMenu.id) },
+        { icon: "copy", label: "Duplicate", kbd: "⌘D", onClick: () => duplicateConn(connMenu.id) },
+        { icon: "trash", label: "Remove", kbd: "⌘⌫", onClick: () => void confirmDeleteConnection(connMenu.id) },
       ]
     : [];
 

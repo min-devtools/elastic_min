@@ -146,7 +146,8 @@ export default function App() {
         e.preventDefault();
         toggleRight();
       }
-      if (mod && key === "d") {
+      // ⌘⇧D, not ⌘D — ⌘D is reserved app-wide for "duplicate selected item"
+      if (mod && e.shiftKey && key === "d") {
         e.preventDefault();
         useApp.getState().openDocsTab();
       }

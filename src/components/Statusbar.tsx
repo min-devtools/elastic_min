@@ -42,7 +42,7 @@ export function Statusbar() {
       <div>
         <span
           style={{ cursor: activeIndex ? "pointer" : undefined }}
-          title={activeIndex ? "Open Documents (⌘D)" : undefined}
+          title={activeIndex ? "Open Documents (⌘⇧D)" : undefined}
           onClick={() => activeIndex && openTab("docs")}
         >
           {activeIndex ?? "no index selected"}

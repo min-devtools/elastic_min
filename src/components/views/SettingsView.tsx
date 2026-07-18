@@ -236,10 +236,13 @@ export function SettingsView({ active }: { active: boolean }) {
               ["Search everywhere / command palette", "⌘K"],
               ["Toggle left sidebar", "⌘B"],
               ["Toggle right inspector", "⌘R"],
-              ["Open Documents", "⌘D"],
+              ["Open Documents", "⌘⇧D"],
               ["Increase font", "⌘+"],
               ["Decrease font", "⌘−"],
               ["Open Settings", "⌘,"],
+              ["Rename / edit selected connection", "⌘E"],
+              ["Duplicate selected connection", "⌘D"],
+              ["Delete selected connection", "⌘⌫"],
             ].map(([desc, key]) => (
               <div className="shortcut-row" key={key}>
                 <span>{desc}</span>

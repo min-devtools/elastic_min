@@ -19,23 +19,21 @@ export function Dialog() {
     }
   }, [dialog]);
 
-  // Esc/Enter work anywhere in the dialog, not just inside the prompt input
+  // Enter confirms, Esc cancels — capture phase so an open dialog swallows the key
+  // before app-level global shortcuts (⌘⌫ delete, Esc closes palette/search) see it.
   useEffect(() => {
     if (!dialog) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        e.stopPropagation();
-        dialog.resolve(null);
-      }
-      if (e.key === "Enter" && dialog.kind === "confirm") {
-        e.preventDefault();
-        dialog.resolve("1");
-      }
+      if (e.key !== "Enter" && e.key !== "Escape") return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.key === "Escape") dialog.resolve(null);
+      else if (dialog.kind !== "prompt") dialog.resolve("1");
+      else if (value.trim()) dialog.resolve(value);
     };
     document.addEventListener("keydown", onKey, true);
     return () => document.removeEventListener("keydown", onKey, true);
-  }, [dialog]);
+  }, [dialog, value]);
 
   if (!dialog) return null;
 
@@ -58,10 +56,6 @@ export function Dialog() {
             value={value}
             spellCheck={false}
             onChange={(e) => setValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") submit();
-              if (e.key === "Escape") cancel();
-            }}
           />
         )}
         <div className="prompt-dialog-foot">

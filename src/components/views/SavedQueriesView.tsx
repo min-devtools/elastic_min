@@ -70,6 +70,7 @@ export function SavedQueriesView({ active }: { active: boolean }) {
                     <Icon name="pencil" />
                   </ToolButton>
                   <ToolButton
+                    variant="danger"
                     title="Delete"
                     aria-label="Delete saved query"
                     onClick={async () => {

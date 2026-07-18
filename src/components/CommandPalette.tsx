@@ -51,7 +51,7 @@ export function CommandPalette() {
       { icon: "copy", label: "Copy query as curl", action: () => void copyActiveQueryAsCurl() },
       { icon: "quick-query", label: "Open Quick Query builder", action: () => app.openTab("quick-query") },
       { icon: "plug", label: "New Elasticsearch connection", action: () => { app.setEditingConn(null); app.openTab("connection"); } },
-      { icon: "docs", label: "Open Documents", kbd: "⌘D", action: () => app.openTab("docs") },
+      { icon: "docs", label: "Open Documents", kbd: "⌘⇧D", action: () => app.openTab("docs") },
       { icon: "panel-left", label: "Toggle left sidebar", kbd: "⌘B", action: () => app.toggleLeft() },
       { icon: "panel-right", label: "Toggle right inspector", kbd: "⌘R", action: () => app.toggleRight() },
       { icon: "indexes", label: "Open All Indexes", action: () => app.openTab("indexes") },
