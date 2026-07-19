@@ -3,6 +3,7 @@ import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { ToolButton } from "../../ui/ToolButton";
 import { Badge } from "../../ui/Badge";
 import { JsonResponseViewer } from "../../ui/JsonResponseViewer";
+import { SectionVeil } from "../../ui/SectionVeil";
 import { Icon } from "../../ui/Icon";
 import { SortTh } from "../../ui/SortTh";
 import { selectDocWithConfirm, useApp } from "../../store";
@@ -232,6 +233,8 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
         </div>}
       </div>
       <div className="result-grid">
+        {/* running = a blocking user-initiated query run, not a background refetch */}
+        <SectionVeil on={!!qt?.running} label="Running query…" />
         {result?.error && (
           <div className="err-note">
             {result.error}

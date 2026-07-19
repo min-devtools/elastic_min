@@ -128,7 +128,7 @@ body.light .editor-pane { background: var(--editor-bg); }
   overflow: hidden;
 }
 
-.result-grid { min-height: 0; overflow: auto; }
+.result-grid { min-height: 0; overflow: auto; position: relative; /* hosts .section-veil */ }
 /* JSON result uses the Monaco viewer — it owns its own scroll, so fill the grid cell */
 .result-editor-host { height: 100%; min-height: 0; overflow: hidden; background: var(--editor-bg); }
 
@@ -628,7 +628,7 @@ body.light .docs-preview-editor { color: var(--editor-fg); }
   outline: none;
 }
 
-.index-table-wrap { min-height: 0; overflow: auto; }
+.index-table-wrap { min-height: 0; overflow: auto; position: relative; /* hosts .section-veil */ }
 
 .cluster-main { padding: 18px; overflow: auto; }
 

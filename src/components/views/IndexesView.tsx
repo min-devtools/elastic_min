@@ -7,6 +7,7 @@ import { Badge } from "../../ui/Badge";
 import { HealthPill } from "../../ui/Pills";
 import { Icon } from "../../ui/Icon";
 import { ContextMenu, type ContextMenuItem } from "../../ui/ContextMenu";
+import { SectionVeil } from "../../ui/SectionVeil";
 import { SortTh } from "../../ui/SortTh";
 import { useApp } from "../../store";
 import { useActiveConnection, useIndices } from "../../lib/queries";
@@ -128,6 +129,8 @@ export function IndexesView({ active }: { active: boolean }) {
         </ToolButton>
       </div>
       <div className="index-table-wrap">
+        {/* isLoading = first fetch with no data yet — background refetches don't veil */}
+        <SectionVeil on={indices.isLoading} label="Loading indexes…" />
         {indices.error && (
           <div className="err-note">
             {String(indices.error)}

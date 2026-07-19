@@ -4,6 +4,7 @@ import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { ToolButton } from "../../ui/ToolButton";
 import { Badge } from "../../ui/Badge";
 import { Icon } from "../../ui/Icon";
+import { SectionVeil } from "../../ui/SectionVeil";
 import { SortTh } from "../../ui/SortTh";
 import { Combobox } from "../../ui/Combobox";
 import { selectDocWithConfirm, useApp } from "../../store";
@@ -160,6 +161,8 @@ export function DocsView({ tabId, active }: { tabId: string; active: boolean }) 
         </div>
       </div>
       <div className="result-grid">
+        {/* isLoading = first fetch with no data yet; placeholderData keeps later refetches veil-free */}
+        <SectionVeil on={search.isLoading} label="Loading documents…" />
         {search.error && (
           <div className="err-note">
             {String(search.error)}
