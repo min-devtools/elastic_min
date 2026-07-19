@@ -6,13 +6,9 @@ export function Statusbar() {
   const conn = useActiveConnection();
   const health = useClusterHealth();
   const info = useClusterInfo();
-  const activeIndex = useApp((s) => s.activeIndex);
   const openTab = useApp((s) => s.openTab);
   const setEditingConn = useApp((s) => s.setEditingConn);
   const activeTabTitle = useApp((s) => s.tabs.find((t) => t.id === s.activeTabId)?.title);
-  const qt = useApp((s) =>
-    s.tabs.find((t) => t.id === s.activeTabId)?.kind === "query" ? s.queryTabs[s.activeTabId] : null,
-  );
   const statusColor =
     health.data?.status === "green"
       ? "var(--green)"
@@ -38,19 +34,6 @@ export function Statusbar() {
         <span style={{ color: statusColor }}>
           {conn ? health.data?.status ?? "connecting…" : "setup required"}
         </span>
-      </div>
-      <div>
-        <span
-          style={{ cursor: activeIndex ? "pointer" : undefined }}
-          title={activeIndex ? "Open Documents (⌘⇧D)" : undefined}
-          onClick={() => activeIndex && openTab("docs")}
-        >
-          {activeIndex ?? "no index selected"}
-        </span>
-        <span>
-          {qt?.result?.hits ? `${qt.result.total ?? qt.result.hits.length} hits` : "—"}
-        </span>
-        <span>{qt?.running ? "running" : qt?.result ? `${qt.result.timeMs}ms` : "idle"}</span>
       </div>
       <div className="right-status">
         <span>{info.data ? `ES ${info.data.version.number}` : ""}</span>

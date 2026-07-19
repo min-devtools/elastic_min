@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { closeTabWithConfirm, useApp } from "../store";
 import { useIndices } from "../lib/queries";
 import { copyActiveQueryAsCurl, runActiveQuery } from "../lib/runQuery";
 import { Icon, type IconName } from "../ui/Icon";
+import { fuzzyMatch, highlight } from "../lib/fuzzy";
 
 interface Command {
   icon: IconName;
@@ -11,14 +12,24 @@ interface Command {
   action: () => void;
 }
 
-/** True when q's characters appear in order inside label ("qq" → "Quick Query"). */
-function fuzzyMatch(q: string, label: string): boolean {
-  let i = 0;
-  for (const ch of label) {
-    if (ch === q[i]) i++;
-    if (i >= q.length) return true;
-  }
-  return q.length === 0;
+function renderHL(text: string, indices: number[]): ReactNode {
+  if (!indices.length) return text;
+  return highlight(text, indices).map((p, i) =>
+    p.mark ? <mark key={i}>{p.text}</mark> : <Fragment key={i}>{p.text}</Fragment>,
+  );
+}
+
+// ponytail: recents persisted in localStorage, max 3 shown.
+const REC_KEY = "elasticmin:cmd-recents";
+const REC_SHOW = 3;
+const REC_KEEP = 8;
+function readRecents(): string[] {
+  try { return JSON.parse(localStorage.getItem(REC_KEY) ?? "[]") as string[]; } catch { return []; }
+}
+function pushRecent(label: string): void {
+  const cur = readRecents().filter((l) => l !== label);
+  cur.unshift(label);
+  try { localStorage.setItem(REC_KEY, JSON.stringify(cur.slice(0, REC_KEEP))); } catch { /* ignore */ }
 }
 
 const RESULT_CAP = 30;
@@ -26,6 +37,7 @@ const RESULT_CAP = 30;
 export function CommandPalette() {
   const [input, setInput] = useState("");
   const [cursor, setCursor] = useState(0);
+  const [recents, setRecents] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const indices = useIndices();
@@ -39,6 +51,7 @@ export function CommandPalette() {
     if (commandOpen) {
       setInput("");
       setCursor(0);
+      setRecents(readRecents());
       requestAnimationFrame(() => inputRef.current?.focus());
     }
   }, [commandOpen]);
@@ -100,20 +113,31 @@ export function CommandPalette() {
     return base;
   }, [tabs, savedQueries, connections, indices.data]);
 
-  const filtered = useMemo(() => {
-    const q = input.trim().toLowerCase();
-    if (!q) return commands.slice(0, RESULT_CAP);
-    // substring matches rank above subsequence ("fuzzy") matches
-    return commands
-      .map((c) => {
-        const l = c.label.toLowerCase();
-        return { c, rank: l.includes(q) ? 0 : fuzzyMatch(q, l) ? 1 : -1 };
-      })
-      .filter((x) => x.rank >= 0)
-      .sort((a, b) => a.rank - b.rank)
-      .map((x) => x.c)
-      .slice(0, RESULT_CAP);
-  }, [commands, input]);
+  const filtered = useMemo<Array<Command & { labelIdx: number[]; recent: boolean }>>(() => {
+    const q = input.trim();
+    const mFor = (c: Command) => (q ? fuzzyMatch(q, c.label) : ({ indices: [] as number[], score: 0 } as const));
+
+    const recentResolved = recents
+      .map((l) => commands.find((c) => c.label === l))
+      .filter((c): c is Command => !!c)
+      .slice(0, REC_SHOW);
+    const recentMatches = recentResolved
+      .map((c) => ({ cmd: c, m: mFor(c) }))
+      .filter((x) => !!x.m)
+      .sort((a, b) => (b.m?.score ?? 0) - (a.m?.score ?? 0));
+    const recentLabels = new Set(recentMatches.map((x) => x.cmd.label));
+
+    const restMatches = commands
+      .filter((c) => !recentLabels.has(c.label))
+      .map((c) => ({ cmd: c, m: mFor(c) }))
+      .filter((x) => !!x.m)
+      .sort((a, b) => (b.m?.score ?? 0) - (a.m?.score ?? 0));
+
+    const out: Array<Command & { labelIdx: number[]; recent: boolean }> = [];
+    for (const x of recentMatches) out.push({ ...x.cmd, labelIdx: x.m!.indices, recent: true });
+    for (const x of restMatches) out.push({ ...x.cmd, labelIdx: x.m!.indices, recent: false });
+    return out.slice(0, RESULT_CAP);
+  }, [commands, input, recents]);
 
   useEffect(() => {
     listRef.current
@@ -125,6 +149,7 @@ export function CommandPalette() {
 
   const runCommand = (cmd: Command) => {
     setCommandOpen(false);
+    pushRecent(cmd.label);
     cmd.action();
   };
 
@@ -159,16 +184,18 @@ export function CommandPalette() {
         />
         <div className="cmd-list" ref={listRef}>
           {filtered.map((cmd, i) => (
-            <div
-              key={cmd.label}
-              className={`cmd ${i === cursor ? "active" : ""}`}
-              onMouseEnter={() => setCursor(i)}
-              onClick={() => runCommand(cmd)}
-            >
-              <Icon name={cmd.icon} size={15} />
-              <span>{cmd.label}</span>
-              {cmd.kbd ? <span className="kbd">{cmd.kbd}</span> : <span />}
-            </div>
+            <Fragment key={cmd.label}>
+              {(i === 0 || filtered[i - 1].recent !== cmd.recent) && <div className="cmd-group">{cmd.recent ? "Recents" : "Commands"}</div>}
+              <div
+                className={`cmd ${i === cursor ? "active" : ""}`}
+                onMouseEnter={() => setCursor(i)}
+                onClick={() => runCommand(cmd)}
+              >
+                <Icon name={cmd.icon} size={15} />
+                <span>{renderHL(cmd.label, cmd.labelIdx)}</span>
+                {cmd.kbd ? <span className="kbd">{cmd.kbd}</span> : <span />}
+              </div>
+            </Fragment>
           ))}
           {filtered.length === 0 && <div className="empty-note">No matching commands.</div>}
         </div>
