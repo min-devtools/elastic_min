@@ -87,7 +87,7 @@ export function TabsBar() {
             setDragId(null);
             setOverId(null);
           }}
-          title={conn ? `${tab.title} Â· ${conn.name}` : tab.kind === "query" ? "Double-click to rename Â· right-click for menu" : undefined}
+          title={conn && conn.name !== tab.title ? `${tab.title} · ${conn.name}` : tab.kind === "query" ? "Double-click to rename · right-click for menu" : undefined}
         >
           {conn && <span className="conn-dot" />}
           <Icon name={tab.icon} className={tab.iconClass} />
@@ -109,10 +109,13 @@ export function TabsBar() {
           ) : (
             <span>{tab.title}</span>
           )}
-          {conn && !editingId && <span className="tab-conn">{conn.name}</span>}
+          {conn && !editingId && conn.name !== tab.title && (
+            // a tab already titled after its owner would just repeat the name
+            <span className="tab-conn">{conn.name}</span>
+          )}
           <span
             className="tab-close"
-            title={`Close ${tab.title} (âW)`}
+            title={`Close ${tab.title} (⌘W)`}
             aria-label={`Close ${tab.title}`}
             onClick={(e) => {
               e.stopPropagation();
@@ -127,7 +130,7 @@ export function TabsBar() {
       <button
         type="button"
         className="tab-add"
-        title="New query tab (âN)"
+        title="New query tab (⌘N)"
         onClick={() => newQueryTab()}
         onDragOver={(e) => {
           if (!dragId) return;
@@ -162,12 +165,12 @@ export function TabsBar() {
                   },
                 }]
               : []),
-            { icon: "x" as const, label: "Close (âW)", onClick: () => closeTab(menu.id) },
+            { icon: "x" as const, label: "Close (⌘W)", onClick: () => closeTab(menu.id) },
             {
               icon: "rows" as const,
               label: "Close others",
               onClick: async () => {
-                // sequential â dirty tabs each get their confirm dialog
+                // sequential — dirty tabs each get their confirm dialog
                 for (const t of tabs.filter((t) => t.id !== menu.id)) {
                   await closeTabWithConfirm(t.id);
                 }
