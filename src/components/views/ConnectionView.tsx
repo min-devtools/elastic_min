@@ -46,7 +46,6 @@ export function ConnectionView({ active }: { active: boolean }) {
   const closeTab = useApp((s) => s.closeTab);
   const setEditingConn = useApp((s) => s.setEditingConn);
   const showToast = useApp((s) => s.showToast);
-  const openDialog = useApp((s) => s.openDialog);
   const editing = useMemo(
     () => connections.find((c) => c.id === editingConnId) ?? null,
     [connections, editingConnId],
@@ -118,36 +117,15 @@ export function ConnectionView({ active }: { active: boolean }) {
     return ok;
   };
 
-  const save = async () => {
-    const ok = await runHandshake();
-    if (!ok) {
-      // don't silently activate a broken connection — every panel would start erroring
-      const proceed = await openDialog({
-        kind: "confirm",
-        title: "Handshake failed",
-        message: "Some checks failed — the endpoint may be unreachable or misconfigured. Save and activate anyway?",
-        confirmLabel: "Save anyway",
-        danger: true,
-      });
-      if (proceed === null) return;
-    }
+  const save = () => {
     saveConnection(draft);
     setActiveConn(draft.id);
     void queryClient.invalidateQueries();
     if (draft.defaultIndex) useApp.getState().setActiveIndex(draft.defaultIndex);
-    showToast(
-      ok ? "Connection saved" : "Saved with warnings",
-      ok
-        ? `${draft.name} is now the active connection.`
-        : `${draft.name} saved, but some handshake checks failed.`,
-      ok ? "ok" : "warn",
-    );
-    if (ok) {
-      // done with setup — close this tab instead of leaving it around
-      setEditingConn(null);
-      closeTab("connection");
-      openTab("query");
-    }
+    showToast("Connection saved", `${draft.name} is now the active connection.`, "ok");
+    setEditingConn(null);
+    closeTab("connection");
+    openTab("query");
   };
 
   return (
@@ -161,7 +139,7 @@ export function ConnectionView({ active }: { active: boolean }) {
           <ToolButton disabled={testing} onClick={() => void runHandshake()}>
             <Icon name="zap" /> {testing ? "Testing…" : "Test handshake"}
           </ToolButton>
-          <ToolButton variant="primary" disabled={testing} onClick={() => void save()}>
+          <ToolButton variant="primary" onClick={save}>
             <Icon name="save" /> Save connection
           </ToolButton>
         </div>

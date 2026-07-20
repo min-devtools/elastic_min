@@ -17,15 +17,15 @@ export function DiffModal({ title, badge, before, after, onCancel, onConfirm, co
   const diff = useMemo(() => diffLines(before, after), [before, after]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        e.stopPropagation();
-        onCancel();
-      }
+      if (e.key !== "Enter" && e.key !== "Escape") return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.key === "Escape") onCancel();
+      else onConfirm();
     };
     document.addEventListener("keydown", onKey, true);
     return () => document.removeEventListener("keydown", onKey, true);
-  }, [onCancel]);
+  }, [onCancel, onConfirm]);
   return (
     <div className="modal" onMouseDown={(e) => { if (e.target === e.currentTarget) onCancel(); }}>
       <div className="diff" role="dialog" aria-modal="true" aria-label={title}>
