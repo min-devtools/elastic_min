@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { ToolButton } from "../../ui/ToolButton";
@@ -33,6 +33,17 @@ export function DocsView({ tabId, active }: { tabId: string; active: boolean }) 
   const [normalized, setNormalized] = useState(false);
   const [paths, setPaths] = useState<string[]>([]);
   const [pathInput, setPathInput] = useState("");
+
+  // reset per-connection search state when the active connection changes
+  useEffect(() => {
+    setFilter("");
+    setApplied("");
+    setPage(0);
+    setSort(null);
+    setNormalized(false);
+    setPaths([]);
+    setPathInput("");
+  }, [conn?.id]);
 
   // sort on .keyword subfield when the mapping says text + keyword
   const sortField = (col: string): string => {

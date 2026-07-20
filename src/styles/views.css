@@ -763,6 +763,8 @@ body.light .docs-preview-editor { color: var(--editor-fg); }
 /* Documents: head / table / pagination footer */
 .docs-view { grid-template-rows: 38px minmax(0, 1fr) 34px; }
 
+.doc-head .combobox { width: 240px; }
+
 .sort-arrow { color: var(--blue); font-size: 0.7692rem; }
 
 .mapping-view { grid-template-rows: 38px minmax(0, 1fr); }

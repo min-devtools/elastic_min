@@ -21,7 +21,7 @@ export function SavedQueriesView({ active }: { active: boolean }) {
   const showToast = useApp((s) => s.showToast);
   const openDialog = useApp((s) => s.openDialog);
 
-  const reopen = (q: SavedQuery) => newQueryTab({ method: q.method, path: q.path, body: q.body });
+  const reopen = (q: SavedQuery) => newQueryTab({ method: q.method, path: q.path, body: q.body, title: q.name });
 
   return (
     <section className={`content indexes-view ${active ? "active" : ""}`}>

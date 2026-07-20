@@ -201,7 +201,7 @@ interface AppState {
   setActiveConn: (id: string | null) => void;
 
   openTab: (kind: TabKind) => void;
-  newQueryTab: (init?: Partial<QueryTabState>) => string;
+  newQueryTab: (init?: Partial<QueryTabState> & { title?: string }) => string;
   openDocsTab: (index?: string) => string;
   setDocsTabIndex: (id: string, index: string) => void;
   closeTab: (id: string) => void;
@@ -434,11 +434,12 @@ export const useApp = create<AppState>((set, get) => ({
     const id = `query-${n}`;
     const conn = activeConnection(s);
     const index = s.activeIndex ?? conn?.defaultIndex ?? "";
+    const { title: initTitle, ...queryInit } = init ?? {};
     set({
       queryTabCounter: n,
       tabs: [
         ...s.tabs,
-        { id, kind: "query", ...TAB_META.query, title: n === 1 ? "Query" : `Query ${n}` },
+        { id, kind: "query", ...TAB_META.query, title: initTitle ?? (n === 1 ? "Query" : `Query ${n}`) },
       ],
       activeTabId: id,
       queryTabs: {
@@ -449,7 +450,7 @@ export const useApp = create<AppState>((set, get) => ({
           body: DEFAULT_QUERY_BODY,
           result: null,
           running: false,
-          ...init,
+          ...queryInit,
         },
       },
     });
