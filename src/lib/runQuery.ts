@@ -2,6 +2,7 @@ import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import type { EsHit, QueryResult } from "./types";
 import { esRequest } from "./es";
 import { activeConnection, useApp } from "../store";
+import { activeQueryTabId } from "./activeQuery";
 
 // Monotonic run token per tab: a response only lands if it belongs to the
 // latest run, so cancelled/superseded requests can't overwrite newer results.
@@ -131,20 +132,10 @@ export async function saveActiveQuery(): Promise<void> {
   s.showToast("Query saved", `"${name.trim()}" is available in the sidebar and ⌘K.`);
 }
 
-/** Run the query in the currently focused tab (or focus/create one). */
+/** Run the query in the currently focused query tab. */
 export function runActiveQuery(): void {
   const s = useApp.getState();
   const tab = s.tabs.find((t) => t.id === s.activeTabId);
-  if (tab?.kind === "query") {
-    void runQueryTab(tab.id);
-    return;
-  }
-  const lastQuery = [...s.tabs].reverse().find((t) => t.kind === "query");
-  if (lastQuery) {
-    s.activateTab(lastQuery.id);
-    void runQueryTab(lastQuery.id);
-  } else {
-    const id = s.newQueryTab();
-    void runQueryTab(id);
-  }
+  const tabId = activeQueryTabId(tab);
+  if (tabId) void runQueryTab(tabId);
 }

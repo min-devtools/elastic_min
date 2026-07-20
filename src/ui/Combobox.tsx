@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { comboboxEnterValue } from "./comboboxSelection";
 
 export interface ComboOption {
   value: string;
@@ -18,6 +19,7 @@ export function Combobox({ value, options, placeholder, onChange, id }: Props) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState(value);
   const [typed, setTyped] = useState(false);
+  const [interacted, setInteracted] = useState(false);
   const [cursor, setCursor] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -58,7 +60,8 @@ export function Combobox({ value, options, placeholder, onChange, id }: Props) {
         onFocus={(e) => {
           setOpen(true);
           setTyped(false);
-          setCursor(0);
+          setInteracted(false);
+          setCursor(Math.max(0, options.findIndex((option) => option.value === value)));
           e.target.select();
         }}
         onBlur={() => {
@@ -68,6 +71,7 @@ export function Combobox({ value, options, placeholder, onChange, id }: Props) {
         onChange={(e) => {
           setText(e.target.value);
           setTyped(true);
+          setInteracted(true);
           setOpen(true);
           setCursor(0);
         }}
@@ -75,15 +79,17 @@ export function Combobox({ value, options, placeholder, onChange, id }: Props) {
           if (e.key === "ArrowDown") {
             e.preventDefault();
             setOpen(true);
+            setInteracted(true);
             setCursor((c) => Math.min(filtered.length - 1, c + 1));
           }
           if (e.key === "ArrowUp") {
             e.preventDefault();
+            setInteracted(true);
             setCursor((c) => Math.max(0, c - 1));
           }
           if (e.key === "Enter" && open && filtered[cursor]) {
             e.preventDefault();
-            pick(filtered[cursor].value);
+            pick(comboboxEnterValue(value, filtered[cursor].value, interacted));
             (e.target as HTMLInputElement).blur();
           }
           if (e.key === "Escape") {

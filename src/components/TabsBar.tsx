@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { closeTabWithConfirm, useApp } from "../store";
+import { closeTabWithConfirm, tabConnection, useApp } from "../store";
+import { connStyle } from "../lib/connColor";
 import { ContextMenu } from "../ui/ContextMenu";
 import { Icon } from "../ui/Icon";
 
 export function TabsBar() {
   const tabs = useApp((s) => s.tabs);
+  const connections = useApp((s) => s.connections);
   const activeTabId = useApp((s) => s.activeTabId);
   const activateTab = useApp((s) => s.activateTab);
   const newQueryTab = useApp((s) => s.newQueryTab);
@@ -32,12 +34,15 @@ export function TabsBar() {
 
   return (
     <nav className="tabs">
-      {tabs.map((tab) => (
+      {tabs.map((tab) => {
+        const conn = tabConnection({ connections }, tab);
+        return (
         <button
           key={tab.id}
           type="button"
           draggable={!editingId}
           className={`tab ${tab.id === activeTabId ? "active" : ""} ${dragId === tab.id ? "dragging" : ""} ${overId === tab.id && dragId && dragId !== tab.id ? "drag-over" : ""}`}
+          style={connStyle(conn?.color)}
           onClick={() => activateTab(tab.id)}
           onAuxClick={(e) => {
             // middle-click closes the tab
@@ -75,8 +80,9 @@ export function TabsBar() {
             setDragId(null);
             setOverId(null);
           }}
-          title={tab.kind === "query" ? "Double-click to rename · right-click for menu" : undefined}
+          title={conn ? `${tab.title} · ${conn.name}` : tab.kind === "query" ? "Double-click to rename · right-click for menu" : undefined}
         >
+          {conn && <span className="conn-dot" />}
           <Icon name={tab.icon} className={tab.iconClass} />
           {editingId === tab.id ? (
             <input
@@ -96,6 +102,7 @@ export function TabsBar() {
           ) : (
             <span>{tab.title}</span>
           )}
+          {conn && !editingId && <span className="tab-conn">{conn.name}</span>}
           <span
             className="tab-close"
             title={`Close ${tab.title} (⌘W)`}
@@ -108,7 +115,8 @@ export function TabsBar() {
             <Icon name="x" size={13} />
           </span>
         </button>
-      ))}
+        );
+      })}
       <button
         type="button"
         className="tab-add"

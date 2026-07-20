@@ -42,6 +42,7 @@ export function CommandPalette() {
   const listRef = useRef<HTMLDivElement>(null);
   const indices = useIndices();
   const commandOpen = useApp((s) => s.commandOpen);
+  const vimMode = useApp((s) => s.vimMode);
   const setCommandOpen = useApp((s) => s.setCommandOpen);
   const savedQueries = useApp((s) => s.savedQueries);
   const connections = useApp((s) => s.connections);
@@ -170,11 +171,13 @@ export function CommandPalette() {
             setCursor(0);
           }}
           onKeyDown={(e) => {
-            if (e.key === "ArrowDown") {
+            const next = e.key === "Tab" || (vimMode && e.ctrlKey && e.key.toLowerCase() === "n");
+            const previous = vimMode && e.ctrlKey && e.key.toLowerCase() === "p";
+            if (e.key === "ArrowDown" || next) {
               e.preventDefault();
-              setCursor((c) => Math.min(filtered.length - 1, c + 1));
+              setCursor((c) => Math.min(Math.max(0, filtered.length - 1), c + 1));
             }
-            if (e.key === "ArrowUp") {
+            if (e.key === "ArrowUp" || previous) {
               e.preventDefault();
               setCursor((c) => Math.max(0, c - 1));
             }

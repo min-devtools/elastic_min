@@ -1,8 +1,12 @@
+import type { ConnColor } from "./connColor";
+
 export type AuthType = "apiKey" | "basic" | "none";
 
 export interface Connection {
   id: string;
   name: string;
+  /** user-assigned identity color, drawn as the dot on every tab bound to this connection */
+  color?: ConnColor;
   endpoint: string;
   authType: AuthType;
   apiKey?: string;
@@ -65,6 +69,12 @@ export interface TabDef {
   title: string;
   icon: IconName;
   iconClass: string;
+  /**
+   * Connection this tab is bound to, fixed at creation and never reassigned — a tab
+   * represents one cluster for its whole life. Undefined on the global kinds, which
+   * belong to the app rather than to a cluster.
+   */
+  connId?: string;
 }
 
 export interface QueryResult {

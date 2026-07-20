@@ -128,6 +128,12 @@ export function QueryView({ tabId, active }: { tabId: string; active: boolean })
               value={qt.path}
               spellCheck={false}
               onChange={(e) => updateQueryTab(tabId, { path: e.target.value })}
+              onKeyDown={(e) => {
+                if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                  e.preventDefault();
+                  void runQueryTab(tabId);
+                }
+              }}
             />
           </div>
           <div className="seg">

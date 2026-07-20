@@ -2,7 +2,7 @@ import { ToolButton } from "../../ui/ToolButton";
 import { Badge } from "../../ui/Badge";
 import { Icon } from "../../ui/Icon";
 import { SortTh } from "../../ui/SortTh";
-import { useApp } from "../../store";
+import { activeConnection, useApp } from "../../store";
 import { runQueryTab } from "../../lib/runQuery";
 import { sortRows, useSort } from "../../lib/useSort";
 import type { HistoryEntry } from "../../lib/types";
@@ -22,7 +22,7 @@ export function HistoryView({ active }: { active: boolean }) {
   const clearHistory = useApp((s) => s.clearHistory);
   const newQueryTab = useApp((s) => s.newQueryTab);
   const showToast = useApp((s) => s.showToast);
-  const activeConnName = useApp((s) => s.connections.find((c) => c.id === s.activeConnId)?.name);
+  const activeConnName = useApp((s) => activeConnection(s)?.name);
   const { sort, cycleSort } = useSort();
 
   const sorted = sortRows(history, sort, (e, col) => {

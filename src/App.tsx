@@ -26,6 +26,7 @@ import { runActiveQuery, saveActiveQuery } from "./lib/runQuery";
 import { themeBase } from "./lib/themes";
 import { retintMonaco } from "./lib/monaco";
 import { applyPalette, readBuiltinPalette } from "./lib/themeContract";
+import { activeSubmitTarget } from "./lib/activeQuery";
 import type { TabDef } from "./lib/types";
 import { Icon } from "./ui/Icon";
 
@@ -94,13 +95,14 @@ export default function App() {
       retintMonaco(base, {
         accentPrimary: v("--accent-primary"),
         accentFocus: v("--accent-focus"),
-        syntaxKey: v("--syntax-key"),
+        syntaxKey: v("--blue-2"),
         syntaxString: v("--syntax-string"),
         syntaxNumber: v("--syntax-number"),
         syntaxBoolean: v("--syntax-boolean"),
         syntaxNull: v("--syntax-null"),
         textPrimary: v("--text-primary"),
         textMuted: v("--text-muted"),
+        editorForeground: v("--editor-fg"),
         surfaceEditor: v("--surface-editor"),
         surfaceRaised: v("--surface-raised"),
         borderDefault: v("--border-default"),
@@ -132,7 +134,13 @@ export default function App() {
       }
       if (mod && e.key === "Enter") {
         e.preventDefault();
-        runActiveQuery();
+        const s = useApp.getState();
+        const tab = s.tabs.find((candidate) => candidate.id === s.activeTabId);
+        const target = activeSubmitTarget(tab);
+        if (target === "query") runActiveQuery();
+        if (target === "docs" && tab) {
+          document.querySelector<HTMLFormElement>(`#docs-search-${tab.id}`)?.requestSubmit();
+        }
       }
       if (mod && key === "s") {
         e.preventDefault();

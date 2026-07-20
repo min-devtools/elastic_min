@@ -32,7 +32,7 @@ function defineThemes(base: "dark" | "light", p: Record<string, string>) {
     ],
     colors: {
       "editor.background": withHash(p.surfaceEditor, base === "dark" ? "0d0f14" : "fbfbfc"),
-      "editor.foreground": withHash(p.textPrimary, base === "dark" ? "d7dce5" : "1c2430"),
+      "editor.foreground": withHash(p.editorForeground, base === "dark" ? "d7dce5" : "1c2430"),
       "editorLineNumber.foreground": withHash(p.textMuted, "4a4f58"),
       "editorCursor.foreground": withHash(p.accentFocus, "5aa7ff"),
       "editor.selectionBackground": withHash(p.accentPrimary, "5aa7ff") + "44",

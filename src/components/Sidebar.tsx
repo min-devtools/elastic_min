@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Badge } from "../ui/Badge";
 import { IndexDot } from "../ui/Pills";
 import { ContextMenu, type ContextMenuItem } from "../ui/ContextMenu";
-import { useApp } from "../store";
+import { activeConnId as activeConnIdOf, useApp } from "../store";
+import { connStyle } from "../lib/connColor";
+import { ColorPicker } from "../ui/ColorPicker";
 import { useActiveConnection, useClusterHealth, useIndices } from "../lib/queries";
 import { formatDocCount } from "../lib/format";
 import type { TabKind } from "../lib/types";
@@ -28,11 +30,12 @@ export function Sidebar() {
   const [connMenu, setConnMenu] = useState<{ x: number; y: number; id: string } | null>(null);
   const [queryMenu, setQueryMenu] = useState<{ x: number; y: number; id: string } | null>(null);
   const [indexMenu, setIndexMenu] = useState<{ x: number; y: number; index: string } | null>(null);
+  const [pickingColor, setPickingColor] = useState<string | null>(null);
   const conn = useActiveConnection();
   const health = useClusterHealth();
   const indices = useIndices();
   const connections = useApp((s) => s.connections);
-  const activeConnId = useApp((s) => s.activeConnId);
+  const activeConnId = useApp(activeConnIdOf);
   const setActiveConn = useApp((s) => s.setActiveConn);
   const deleteConnection = useApp((s) => s.deleteConnection);
   const setEditingConn = useApp((s) => s.setEditingConn);
@@ -160,6 +163,7 @@ export function Sidebar() {
           onClick: () => setActiveConn(connMenu.id),
         },
         { icon: "pencil", label: "Edit connection", kbd: "⌘E", onClick: () => editConn(connMenu.id) },
+        { icon: "status", label: "Set color…", onClick: () => setPickingColor(connMenu.id) },
         { icon: "copy", label: "Duplicate", kbd: "⌘D", onClick: () => duplicateConn(connMenu.id) },
         { icon: "trash", label: "Remove", kbd: "⌘⌫", onClick: () => void confirmDeleteConnection(connMenu.id) },
       ]
@@ -257,7 +261,11 @@ export function Sidebar() {
                 setDropTarget(null);
               }}
             >
-              <Icon name="status" className={c.id === activeConnId ? "soft-green" : undefined} />
+              <span
+                className="conn-dot"
+                style={connStyle(c.color)}
+                title={c.color ? `Color: ${c.color}` : "No color — right-click to set one"}
+              />
               <span>{c.name}</span>
               <Badge tone={c.id === activeConnId ? health.data?.status ?? "idle" : "idle"}>
                 {c.id === activeConnId ? health.data?.status ?? "connecting…" : "idle"}
@@ -344,6 +352,16 @@ export function Sidebar() {
       </div>
       {connMenu && (
         <ContextMenu x={connMenu.x} y={connMenu.y} items={connMenuItems} onClose={() => setConnMenu(null)} />
+      )}
+      {pickingColor && (
+        <ColorPicker
+          value={connections.find((c) => c.id === pickingColor)?.color}
+          onPick={(color) => {
+            const c = connections.find((x) => x.id === pickingColor);
+            if (c) saveConnection({ ...c, color: color ?? undefined });
+          }}
+          onClose={() => setPickingColor(null)}
+        />
       )}
       {indexMenu && (
         <ContextMenu

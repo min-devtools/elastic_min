@@ -11,6 +11,7 @@ import { selectDocWithConfirm, useApp } from "../../store";
 import { useActiveConnection, useIndices, useMappingFields } from "../../lib/queries";
 import { esJson } from "../../lib/es";
 import { formatDocCount, formatValue, getPath, valueClass } from "../../lib/format";
+import { nextDocumentSearch } from "../../lib/documentSearch";
 import type { EsHit } from "../../lib/types";
 
 const PAGE_SIZE = 50;
@@ -98,9 +99,11 @@ export function DocsView({ tabId, active }: { tabId: string; active: boolean }) 
     });
   };
 
-  const applyFilter = (value: string) => {
-    setApplied(value);
-    setPage(0);
+  const applyFilter = () => {
+    const next = nextDocumentSearch(applied, filter, page);
+    setApplied(next.applied);
+    setPage(next.page);
+    if (next.refetch) void search.refetch();
   };
 
   const addPath = () => {
@@ -135,19 +138,25 @@ export function DocsView({ tabId, active }: { tabId: string; active: boolean }) 
           >
             <Icon name="table" />
           </ToolButton>
-          <input
-            className="side-search"
-            style={{ width: 250, height: 28 }}
-            placeholder="customer.email:@acme.co"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") applyFilter(filter);
+          <form
+            id={`docs-search-${tabId}`}
+            style={{ display: "contents" }}
+            onSubmit={(e) => {
+              e.preventDefault();
+              applyFilter();
             }}
-          />
-          <ToolButton iconOnly title="Apply document filter" aria-label="Apply document filter" onClick={() => applyFilter(filter)}>
-            <Icon name="filter" />
-          </ToolButton>
+          >
+            <input
+              className="side-search"
+              style={{ width: 250, height: 28 }}
+              placeholder="customer.email:@acme.co"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+            />
+            <ToolButton type="submit" iconOnly title="Apply document filter" aria-label="Apply document filter">
+              <Icon name="filter" />
+            </ToolButton>
+          </form>
           {normalized && (
             <>
               <input
