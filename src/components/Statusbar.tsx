@@ -1,6 +1,7 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useApp } from "../store";
 import { useActiveConnection, useClusterHealth, useClusterInfo } from "../lib/queries";
+import { UpdateBadge } from "../lib/updateCheck";
 
 export function Statusbar() {
   const conn = useActiveConnection();
@@ -40,6 +41,7 @@ export function Statusbar() {
         <span>UTF-8</span>
         <span>{activeTabTitle ?? ""}</span>
         <span>v{__APP_VERSION__}</span>
+        <UpdateBadge repo="min-devtools/elastic_min" />
         <span
           className="credit"
           style={{ cursor: "pointer" }}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { ToolButton } from "../../ui/ToolButton";
 import { Badge } from "../../ui/Badge";
@@ -8,8 +8,9 @@ import { Icon } from "../../ui/Icon";
 import { Combobox } from "../../ui/Combobox";
 import { useApp } from "../../store";
 import { useActiveConnection, useIndices, useMappingFields } from "../../lib/queries";
-import { typedValue } from "../../lib/format";
-import { runQueryTab } from "../../lib/runQuery";
+import { formatValue, typedValue, valueClass } from "../../lib/format";
+import { esRequest } from "../../lib/es";
+import type { EsHit } from "../../lib/types";
 
 type Operator = "term" | "match" | "range_gte" | "range_lte" | "exists";
 
@@ -34,16 +35,6 @@ function defaultOperator(type: string): Operator {
   }
   if (type.startsWith("text")) return "match";
   return "term";
-}
-
-function fieldNote(type: string): string {
-  if (type.startsWith("keyword")) return "keyword field · exact values · fast filter cache";
-  if (type.startsWith("text")) return "analyzed text · full-text match";
-  if (type.startsWith("date")) return "date field · range friendly (now-7d, ISO)";
-  if (type.includes("float") || type.includes("double")) return "numeric field · threshold filters";
-  if (type.includes("long") || type.includes("integer")) return "numeric field · exact or range";
-  if (type.startsWith("nested")) return "nested path · matches inside nested docs";
-  return `${type} field`;
 }
 
 function clauseFor(c: Condition): Record<string, unknown> {
@@ -71,7 +62,12 @@ export function QuickQueryView({ active }: { active: boolean }) {
   const mapping = useMappingFields(index || null);
   const fields = mapping.data ?? [];
 
+  const quickTabRef = useRef<string | null>(null);
   const [conditions, setConditions] = useState<Condition[]>([]);
+  const [preview, setPreview] = useState<{ hits: EsHit[]; total: number | null; timeMs: number; error?: string } | null>(null);
+  const [previewRunning, setPreviewRunning] = useState(false);
+  // stale-response guard: only the latest run may land
+  const previewSeq = useRef(0);
   const [logic, setLogic] = useState<"and" | "or">("and");
   const [lastField, setLastField] = useState("");
 
@@ -94,8 +90,6 @@ export function QuickQueryView({ active }: { active: boolean }) {
     patchCondition(id, { field: path, ...(f ? { operator: defaultOperator(f.type) } : {}) });
   };
 
-  const metaField = fields.find((f) => f.path === lastField) ?? fields[0];
-
   const query = useMemo(() => {
     const clauses = conditions.filter((c) => c.field).map(clauseFor);
     const q =
@@ -109,11 +103,64 @@ export function QuickQueryView({ active }: { active: boolean }) {
 
   const generated = JSON.stringify(query, null, 2);
 
+  const previewColumns = useMemo(() => {
+    const first = preview?.hits[0]?._source;
+    return first ? Object.keys(first) : [];
+  }, [preview]);
+
   const useInQuery = () => {
+    const s = useApp.getState();
+    const prev = quickTabRef.current;
+    if (prev && s.tabs.some((t) => t.id === prev)) {
+      s.updateQueryTab(prev, { method: "POST", path: `/${index}/_search`, body: generated });
+      s.activateTab(prev);
+      showToast("Quick query updated", `${conditions.length} condition(s) in Query tab.`);
+      return prev;
+    }
     const id = newQueryTab({ method: "POST", path: `/${index}/_search`, body: generated });
+    quickTabRef.current = id;
     showToast("Quick query applied", `${conditions.length} condition(s) loaded into a Query tab.`);
     return id;
   };
+
+  const runPreview = async () => {
+    if (!conn || !index) return;
+    const seq = ++previewSeq.current;
+    setPreviewRunning(true);
+    try {
+      // preview is a sample: cap at 10 docs regardless of the generated query's size
+      const res = await esRequest(conn, "POST", `/${index}/_search`, JSON.stringify({ ...query, size: 10 }));
+      if (previewSeq.current !== seq) return;
+      const json = res.json as any;
+      if (res.status >= 400) {
+        setPreview({ hits: [], total: null, timeMs: res.timeMs, error: json?.error?.reason ?? `HTTP ${res.status}` });
+      } else {
+        const hits: EsHit[] = Array.isArray(json?.hits?.hits) ? json.hits.hits : [];
+        const total = typeof json?.hits?.total === "number" ? json.hits.total : (json?.hits?.total?.value ?? null);
+        setPreview({ hits, total, timeMs: res.timeMs });
+      }
+    } catch (err) {
+      if (previewSeq.current !== seq) return;
+      setPreview({ hits: [], total: null, timeMs: 0, error: String(err) });
+    } finally {
+      if (previewSeq.current === seq) setPreviewRunning(false);
+    }
+  };
+
+  // ⌘/Ctrl+Enter runs the preview while this view is active
+  const runPreviewRef = useRef(runPreview);
+  runPreviewRef.current = runPreview;
+  useEffect(() => {
+    if (!active) return;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        void runPreviewRef.current();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [active]);
 
   return (
     <section className={`content quick-query-view ${active ? "active" : ""}`}>
@@ -153,6 +200,7 @@ export function QuickQueryView({ active }: { active: boolean }) {
                 }
                 setActiveIndex(v);
                 setConditions([]);
+                setPreview(null);
               }}
             />
           </div>
@@ -233,13 +281,6 @@ export function QuickQueryView({ active }: { active: boolean }) {
             </ToolButton>
           </div>
 
-          {metaField && (
-            <div className="quick-field-meta">
-              <strong>{metaField.path} · {metaField.type}</strong>
-              <span>{fieldNote(metaField.type)}</span>
-              <code>GET /{index}/_mapping → properties.{metaField.path}</code>
-            </div>
-          )}
         </div>
         <div className="quick-preview">
           <div className="quick-preview-head">
@@ -256,27 +297,51 @@ export function QuickQueryView({ active }: { active: boolean }) {
               >
                 <Icon name="copy" /> Copy
               </ToolButton>
-              <ToolButton
-                onClick={() => {
-                  const id = useInQuery();
-                  void runQueryTab(id);
-                }}
-              >
-                <Icon name="play" /> Run preview
+              <ToolButton disabled={!conn || !index || previewRunning} onClick={() => void runPreview()}>
+                <Icon name="play" /> {previewRunning ? "Running…" : "Run preview"}
               </ToolButton>
             </div>
           </div>
           <JsonView className="quick-query-code json-tree" value={generated} />
-          <div className="quick-mapping-strip">
-            {fields.slice(0, 4).map((f) => (
-              <div className="quick-map-card" key={f.path}>
-                <strong>{f.path}</strong>
-                <span>{f.type}</span>
-                <span>{fieldNote(f.type)}</span>
+          {preview && (
+            <div className="quick-preview-results">
+              <div className="quick-preview-results-head">
+                <strong>{preview.error ? "Preview failed" : `${(preview.total ?? preview.hits.length).toLocaleString("en-US")} hits`}</strong>
+                {!preview.error && <span>sample of {preview.hits.length}</span>}
+                <span>{preview.timeMs} ms</span>
               </div>
-            ))}
-            {!fields.length && <div className="empty-note">Mapping fields appear here.</div>}
-          </div>
+              {preview.error ? (
+                <div className="err-note">{preview.error}</div>
+              ) : (
+                <table>
+                  <thead>
+                    <tr>
+                      <th>_id</th>
+                      {previewColumns.map((c) => <th key={c}>{c}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {preview.hits.map((h) => (
+                      <tr key={`${h._index}/${h._id}`}>
+                        <td><span className="cell-id">{h._id}</span></td>
+                        {previewColumns.map((c) => {
+                          const v = (h._source ?? {})[c];
+                          return (
+                            <td key={c}>
+                              <span className={`path-value ${valueClass(c, v)}`}>{formatValue(v)}</span>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                    {!preview.hits.length && (
+                      <tr><td style={{ color: "var(--text-3)" }}>no documents matched</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </section>
