@@ -85,10 +85,6 @@ export function Sidebar() {
   const filteredSavedQueries = savedQueries.filter((sq) => !q || sq.name.toLowerCase().includes(q));
   const shownSavedQueries = filteredSavedQueries.slice(0, SIDEBAR_CAP);
   const hiddenSavedQueryCount = Math.max(0, filteredSavedQueries.length - SIDEBAR_CAP);
-  const aliasCount = useMemo(
-    () => new Set((indices.data ?? []).flatMap((i) => i.aliases)).size,
-    [indices.data],
-  );
 
   const confirmDeleteConnection = async (id: string) => {
     const c = connections.find((x) => x.id === id);
@@ -337,18 +333,6 @@ export function Sidebar() {
             </div>
           )}
         </div>
-
-        {conn && (
-          <div className="group">
-            <div className="group-title"><span>Database objects</span><span /></div>
-            <div className="nav-item" onClick={() => openTab("indexes")}>
-              <Icon name="database" /><span>Aliases</span><span>{aliasCount || ""}</span>
-            </div>
-            <div className="nav-item" onClick={() => openTab("cluster")}>
-              <Icon name="cluster" /><span>Cluster health</span><span>{health.data?.status ?? ""}</span>
-            </div>
-          </div>
-        )}
       </div>
       {connMenu && (
         <ContextMenu x={connMenu.x} y={connMenu.y} items={connMenuItems} onClose={() => setConnMenu(null)} />

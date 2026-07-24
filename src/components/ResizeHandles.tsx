@@ -63,7 +63,7 @@ export function startResize(
     if (axis === "query" && query && topPane) {
       const rect = query.getBoundingClientRect();
       const max = Math.max(300, rect.height - 190);
-      const next = clamp(startTop + (e.clientY - startY), 240, max);
+      const next = clamp(startTop + (e.clientY - startY), 60, max);
       document.body.style.setProperty("--query-top", `${Math.round(next)}px`);
     }
   };
@@ -90,6 +90,24 @@ export function startResize(
   window.addEventListener("pointerup", stop, { once: true });
   window.addEventListener("pointercancel", stop, { once: true });
 }
+
+export function toggleQueryExpand() {
+  const query = document.querySelector(".query-view.active");
+  const topPane = query?.firstElementChild as HTMLElement | undefined;
+  if (!topPane) return;
+  const currentHeight = topPane.getBoundingClientRect().height;
+  if (currentHeight <= 100) {
+    const last = Number(localStorage.getItem("elasticmin:last-query-top")) || 340;
+    const target = Math.max(240, last);
+    document.body.style.setProperty("--query-top", `${target}px`);
+    localStorage.setItem("elasticmin:query-top", String(target));
+  } else {
+    localStorage.setItem("elasticmin:last-query-top", String(Math.round(currentHeight)));
+    document.body.style.setProperty("--query-top", "60px");
+    localStorage.setItem("elasticmin:query-top", "60px");
+  }
+}
+
 
 export function PanelResizeHandles() {
   useEffect(() => {

@@ -33,3 +33,10 @@ test("results panel no longer has the NDJSON copy button", async () => {
   assert.doesNotMatch(panel, /NDJSON/);
   assert.doesNotMatch(panel, /copyNdjson/);
 });
+
+test("results panel auto switches to JSON view when aggregations are present", async () => {
+  const panel = await read("components/views/ResultsPanel.tsx");
+  assert.match(panel, /"aggregations"\s*in\s*rawObj\s*\|\|\s*"aggs"\s*in\s*rawObj/);
+  assert.match(panel, /setView\("json"\)/);
+});
+

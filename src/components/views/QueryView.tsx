@@ -7,7 +7,7 @@ import { Icon } from "../../ui/Icon";
 import { useApp } from "../../store";
 import { useActiveConnection, useMappingFields } from "../../lib/queries";
 import { loadVimMode, MONACO_THEME, setCompletionFields } from "../../lib/monaco";
-import { startResize } from "../ResizeHandles";
+import { startResize, toggleQueryExpand } from "../ResizeHandles";
 import { ResultsPanel } from "./ResultsPanel";
 import { copyActiveQueryAsCurl, runQueryTab, saveActiveQuery } from "../../lib/runQuery";
 
@@ -202,8 +202,9 @@ export function QueryView({ tabId, active }: { tabId: string; active: boolean })
       </div>
       <div
         className="query-resizer"
-        title="Resize query and results panes"
+        title="Resize query and results panes (Double click to toggle max height)"
         onPointerDown={(e) => startResize(e, "query")}
+        onDoubleClick={toggleQueryExpand}
       />
       <ResultsPanel tabId={tabId} />
     </section>

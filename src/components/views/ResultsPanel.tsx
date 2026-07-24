@@ -9,6 +9,7 @@ import { SortTh } from "../../ui/SortTh";
 import { selectDocWithConfirm, useApp } from "../../store";
 import { useActiveConnection } from "../../lib/queries";
 import { esJson } from "../../lib/es";
+import { toggleQueryExpand } from "../ResizeHandles";
 import { formatValue, getPath, valueClass } from "../../lib/format";
 import { runQueryTab } from "../../lib/runQuery";
 import { sortRows, useSort } from "../../lib/useSort";
@@ -38,7 +39,11 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
   useEffect(() => {
     setSelected(new Set());
     setPage(1);
-  }, [hits]);
+    const rawObj = result?.raw as Record<string, unknown> | null;
+    if (rawObj && typeof rawObj === "object" && ("aggregations" in rawObj || "aggs" in rawObj)) {
+      setView("json");
+    }
+  }, [result]);
 
   // docs across indices can share an _id — selection/keys must be index-qualified
   const keyOf = (h: { _index: string; _id: string }) => `${h._index}/${h._id}`;
@@ -172,7 +177,7 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
 
   return (
     <div className="results">
-      <div className="result-head">
+      <div className="result-head" onDoubleClick={toggleQueryExpand}>
         <div className="result-headline">
           <div className="seg">
             <strong>Search Results</strong>
