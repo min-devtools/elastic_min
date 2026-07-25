@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from "react";
+import { motion } from "motion/react";
 import { ToolButton } from "../ui/ToolButton";
 import { Badge } from "../ui/Badge";
 import { diffLines } from "../lib/format";
@@ -26,9 +27,29 @@ export function DiffModal({ title, badge, before, after, onCancel, onConfirm, co
     document.addEventListener("keydown", onKey, true);
     return () => document.removeEventListener("keydown", onKey, true);
   }, [onCancel, onConfirm]);
+
+  // no AnimatePresence here — the caller owns the mount/unmount and wraps it. A nested
+  // AnimatePresence would provide its own PresenceContext with isPresent:true, shadowing
+  // the caller's exit signal, and these motion.divs would never run their exit.
   return (
-    <div className="modal" onMouseDown={(e) => { if (e.target === e.currentTarget) onCancel(); }}>
-      <div className="diff" role="dialog" aria-modal="true" aria-label={title}>
+    <motion.div
+      className="modal"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }}
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onCancel(); }}
+    >
+      <motion.div
+        className="diff"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        initial={{ opacity: 0, scale: 0.96, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 10 }}
+        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+      >
         <div className="diff-head">
           <strong>{title}</strong>
           <Badge>{badge}</Badge>
@@ -41,7 +62,7 @@ export function DiffModal({ title, badge, before, after, onCancel, onConfirm, co
           <ToolButton onClick={onCancel}>Cancel</ToolButton>
           <ToolButton variant="primary" onClick={onConfirm}>{confirmLabel}</ToolButton>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { ToolButton } from "./ToolButton";
 import { Icon } from "./Icon";
 
@@ -101,7 +102,7 @@ function TreeNode({
   const close = isArray ? "]" : "}";
 
   return (
-    <div className="json-tree-node">
+    <motion.div className="json-tree-node" layout="position">
       <div className="json-tree-line json-tree-branch">
         <button type="button" className="json-tree-toggle" onClick={toggle} aria-label={isCollapsed ? "Expand" : "Collapse"}>
           {isCollapsed ? "▶" : "▼"}
@@ -124,28 +125,36 @@ function TreeNode({
         )}
         {!isCollapsed && entries.length === 0 && <span className="syntax-punc">{close}</span>}
       </div>
-      {!isCollapsed && entries.length > 0 && (
-        <>
-          <div className="json-tree-children">
-            {entries.map(({ key: childKey, value: childValue }) => (
-              <TreeNode
-                key={pathKey([...path, childKey])}
-                value={childValue}
-                path={[...path, childKey]}
-                name={childKey}
-                q={q}
-                collapsed={collapsed}
-                setCollapsed={setCollapsed}
-              />
-            ))}
-          </div>
-          <div className="json-tree-line json-tree-closer">
-            <span className="json-tree-toggle placeholder" />
-            <span className="syntax-punc">{close}</span>
-          </div>
-        </>
-      )}
-    </div>
+      <AnimatePresence initial={false}>
+        {!isCollapsed && entries.length > 0 && (
+          <motion.div
+            key="children"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.12 }}
+          >
+            <div className="json-tree-children">
+              {entries.map(({ key: childKey, value: childValue }) => (
+                <TreeNode
+                  key={pathKey([...path, childKey])}
+                  value={childValue}
+                  path={[...path, childKey]}
+                  name={childKey}
+                  q={q}
+                  collapsed={collapsed}
+                  setCollapsed={setCollapsed}
+                />
+              ))}
+            </div>
+            <div className="json-tree-line json-tree-closer">
+              <span className="json-tree-toggle placeholder" />
+              <span className="syntax-punc">{close}</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }
 
@@ -252,27 +261,39 @@ export function JsonView({ value: rawValue, className = "json-tree" }: Props) {
   const expandAll = () => setCollapsed(new Set());
 
   const toolbar = (
-    <div className="json-view-head" style={{ display: showSearch ? "flex" : "none" }}>
-      <Icon name="search" size={13} />
-      <input
-        ref={inputRef}
-        value={query}
-        placeholder="Search value"
-        onChange={(e) => setQuery(e.target.value)}
-        spellCheck={false}
-      />
-      {query && (
-        <ToolButton iconOnly title="Clear search" onClick={() => setQuery("")}>
-          <Icon name="x" size={13} />
-        </ToolButton>
+    <AnimatePresence initial={false}>
+      {showSearch && (
+        <motion.div
+          key="json-view-head"
+          className="json-view-head"
+          style={{ overflow: "hidden" }}
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: "auto", opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.16, ease: [0.32, 0.72, 0, 1] }}
+        >
+          <Icon name="search" size={13} />
+          <input
+            ref={inputRef}
+            value={query}
+            placeholder="Search value"
+            onChange={(e) => setQuery(e.target.value)}
+            spellCheck={false}
+          />
+          {query && (
+            <ToolButton iconOnly title="Clear search" onClick={() => setQuery("")}>
+              <Icon name="x" size={13} />
+            </ToolButton>
+          )}
+          <ToolButton iconOnly title="Collapse all" onClick={collapseAll}>
+            <Icon name="minify" size={13} />
+          </ToolButton>
+          <ToolButton iconOnly title="Expand all" onClick={expandAll}>
+            <Icon name="plus" size={13} />
+          </ToolButton>
+        </motion.div>
       )}
-      <ToolButton iconOnly title="Collapse all" onClick={collapseAll}>
-        <Icon name="minify" size={13} />
-      </ToolButton>
-      <ToolButton iconOnly title="Expand all" onClick={expandAll}>
-        <Icon name="plus" size={13} />
-      </ToolButton>
-    </div>
+    </AnimatePresence>
   );
 
   if (value === undefined || value === null) {

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { comboboxEnterValue } from "./comboboxSelection";
 
 export interface ComboOption {
@@ -98,27 +99,36 @@ export function Combobox({ value, options, placeholder, onChange, id }: Props) {
           }
         }}
       />
-      {open && (
-        <div className="combobox-list" ref={listRef}>
-          {filtered.length === 0 && <div className="combobox-empty">no matching fields</div>}
-          {filtered.map((o, i) => (
-            <div
-              key={o.value}
-              data-idx={i}
-              className={`combobox-item ${i === cursor ? "active" : ""} ${o.value === value ? "selected" : ""}`}
-              // mousedown fires before input blur — keeps the click working
-              onMouseDown={(e) => {
-                e.preventDefault();
-                pick(o.value);
-              }}
-              onMouseEnter={() => setCursor(i)}
-            >
-              <span className="combobox-value">{o.value}</span>
-              {o.hint && <span className="combobox-hint">{o.hint}</span>}
-            </div>
-          ))}
-        </div>
-      )}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            key="combobox-list"
+            className="combobox-list"
+            ref={listRef}
+            initial={{ opacity: 0, y: -4, scaleY: 0.96 }}
+            animate={{ opacity: 1, y: 0, scaleY: 1 }}
+            exit={{ opacity: 0, y: -4, scaleY: 0.96 }}
+            transition={{ duration: 0.12, ease: [0.32, 0.72, 0, 1] }}
+          >
+            {filtered.length === 0 && <div className="combobox-empty">no matching fields</div>}
+            {filtered.map((o, i) => (
+              <div
+                key={o.value}
+                data-idx={i}
+                className={`combobox-item ${i === cursor ? "active" : ""} ${o.value === value ? "selected" : ""}`}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  pick(o.value);
+                }}
+                onMouseEnter={() => setCursor(i)}
+              >
+                <span className="combobox-value">{o.value}</span>
+                {o.hint && <span className="combobox-hint">{o.hint}</span>}
+              </div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

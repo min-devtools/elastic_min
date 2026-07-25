@@ -20,13 +20,13 @@ interface Props {
 export function JsonEditor({ value, onChange, vimStatusRef, fontSize, lineNumbers = false, readOnly = false, highlightPath }: Props) {
   const vimMode = useApp((s) => s.vimMode);
   const editorFont = useApp((s) => s.editorFont);
-  const editorFontSize = useApp((s) => s.editorFontSize);
+  const uiFontSize = useApp((s) => s.uiFontSize);
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
   const vimRef = useRef<{ dispose(): void } | null>(null);
   const decoRef = useRef<string[]>([]);
   const [mounted, setMounted] = useState(false);
 
-  const size = fontSize ?? editorFontSize;
+  const size = fontSize ?? uiFontSize;
 
   // reveal + highlight the line of the clicked field (walk dotted path segments)
   useEffect(() => {

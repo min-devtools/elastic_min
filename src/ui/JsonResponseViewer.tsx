@@ -30,8 +30,10 @@ export function JsonResponseViewer({ value }: { value: string }) {
   }, [value, normalize, active.join("\n"), capped]);
 
   const addPath = () => {
-    const path = draft.trim();
+    let path = draft.trim();
     if (!path) return;
+    // paths are rooted at `value`; accept both `value.a` and `value[0].a` unprefixed
+    if (!/^value[.[]/.test(path)) path = `value.${path}`;
     try {
       normalizeJson(JSON.parse(value), path);
       setPaths((current) => (current.includes(path) ? current : [...current, path]));
@@ -69,7 +71,7 @@ export function JsonResponseViewer({ value }: { value: string }) {
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
         onKeyDown={(event) => event.key === "Enter" && addPath()}
-        placeholder="value.$.a or value[0].a"
+        placeholder="hits.hits.$._source.name or value.$.a"
       />
       <button type="button" onClick={addPath}>Add path</button>
       <button
