@@ -6,12 +6,6 @@
 
 .content.active { display: grid; }
 
-/* sidebar/inspector collapse — grid-template-columns itself is defined in the shared
-   design-systems/layout.css; only the transition is added here, app-local, so it doesn't
-   ripple into the other apps that share that stylesheet. */
-.main { transition: grid-template-columns var(--motion-standard) var(--ease-ui); }
-body.resizing .main { transition: none; }
-
 .query-view {
   grid-template-rows: minmax(60px, var(--query-top)) 7px minmax(180px, 1fr);
   transition: grid-template-rows var(--motion-standard) var(--ease-ui);

@@ -5,6 +5,8 @@ import { useIndices } from "../lib/queries";
 import { copyActiveQueryAsCurl, runActiveQuery } from "../lib/runQuery";
 import { Icon, type IconName } from "../ui/Icon";
 import { fuzzyMatch, highlight } from "../lib/fuzzy";
+import { THEMES } from "../lib/themes";
+import { ToolButton } from "../ui/ToolButton";
 
 interface Command {
   icon: IconName;
@@ -39,6 +41,7 @@ export function CommandPalette() {
   const [input, setInput] = useState("");
   const [cursor, setCursor] = useState(0);
   const [recents, setRecents] = useState<string[]>([]);
+  const [themePicker, setThemePicker] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const indices = useIndices();
@@ -48,6 +51,8 @@ export function CommandPalette() {
   const savedQueries = useApp((s) => s.savedQueries);
   const connections = useApp((s) => s.connections);
   const tabs = useApp((s) => s.tabs);
+  const theme = useApp((s) => s.theme);
+  const setTheme = useApp((s) => s.setTheme);
 
   useEffect(() => {
     if (commandOpen) {
@@ -79,6 +84,7 @@ export function CommandPalette() {
       { icon: "activity", label: "Index stats (active index)", action: () => app.openTab("index-stats") },
       { icon: "x", label: "Close current tab", kbd: "⌘W", action: () => void closeTabWithConfirm(useApp.getState().activeTabId) },
       { icon: "moon", label: "Toggle theme", action: () => app.toggleTheme() },
+      { icon: "settings", label: "Theme picker", action: () => setThemePicker(true) },
       { icon: "keyboard", label: "Toggle vim mode", action: () => app.toggleVim() },
     ];
     for (const t of tabs) {
@@ -154,6 +160,7 @@ export function CommandPalette() {
   };
 
   return (
+    <>
     <AnimatePresence>
       {commandOpen && (
         <motion.div
@@ -219,5 +226,19 @@ export function CommandPalette() {
         </motion.div>
       )}
     </AnimatePresence>
+    {themePicker && (
+      <div className="modal" onMouseDown={(e) => { if (e.target === e.currentTarget) setThemePicker(false); }}>
+        <div className="prompt-dialog" role="dialog" aria-modal="true" aria-label="Theme picker">
+          <strong>Theme picker</strong>
+          <p className="prompt-dialog-msg">Changes apply immediately and are saved for this device.</p>
+          <select className="side-search" style={{ width: "100%" }} value={theme} autoFocus onChange={(event) => setTheme(event.target.value)}>
+            <optgroup label="Dark">{THEMES.filter((item) => item.base === "dark").map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</optgroup>
+            <optgroup label="Light">{THEMES.filter((item) => item.base === "light").map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</optgroup>
+          </select>
+          <div className="prompt-dialog-foot"><ToolButton variant="primary" onClick={() => setThemePicker(false)}>Done</ToolButton></div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
