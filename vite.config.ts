@@ -12,7 +12,7 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify(version),
   },
   server: {
-    port: 1421,
+    port: 1420,
     strictPort: true,
   },
   build: {
