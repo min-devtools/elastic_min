@@ -75,7 +75,9 @@ function loadHistory(): HistoryEntry[] {
           typeof e.method === "string" &&
           typeof e.at === "number",
       )
-      .slice(0, HISTORY_CAP);
+      .slice(0, HISTORY_CAP)
+      // entries persisted before `id` existed still need a unique, stable key
+      .map((e: any, i: number) => (typeof e.id === "string" ? e : { ...e, id: `legacy-${e.at}-${i}` }));
   } catch {
     return [];
   }
@@ -197,8 +199,7 @@ interface AppState {
   theme: string;
   compact: boolean;
   vimMode: boolean;
-  editorFontSize: number;
-  /** app-wide UI font size in px (1rem base) */
+  /** app-wide UI font size in px (1rem base); also drives editor font size */
   uiFontSize: number;
   /** OpenAI-compatible provider for the AI query assistant */
   aiProvider: { endpoint: string; apiKey: string; model: string };
@@ -218,7 +219,7 @@ interface AppState {
   saveQuery: (q: Omit<SavedQuery, "id" | "createdAt">) => void;
   deleteSavedQuery: (id: string) => void;
   renameSavedQuery: (id: string, name: string) => void;
-  pushHistory: (e: HistoryEntry) => void;
+  pushHistory: (e: Omit<HistoryEntry, "id">) => void;
   clearHistory: () => void;
   newAiSession: () => string;
   setActiveAiSession: (id: string) => void;
@@ -252,7 +253,6 @@ interface AppState {
   toggleTheme: () => void;
   toggleCompact: () => void;
   toggleVim: () => void;
-  setEditorFontSize: (size: number) => void;
   setUiFontSize: (size: number) => void;
   setUiFont: (font: string) => void;
   setAiProvider: (p: Partial<{ endpoint: string; apiKey: string; model: string }>) => void;
@@ -361,7 +361,6 @@ export const useApp = create<AppState>((set, get) => ({
   })(),
   compact: localStorage.getItem("elasticmin:compact") === "1",
   vimMode: localStorage.getItem("elasticmin:vim") === "1",
-  editorFontSize: Number(localStorage.getItem("elasticmin:font-size")) || 13,
   uiFontSize: clampFontSize(Number(localStorage.getItem("elasticmin:ui-font-size")) || DEFAULT_FONT_SIZE),
   aiProvider: (() => {
     try {
@@ -404,7 +403,7 @@ export const useApp = create<AppState>((set, get) => ({
     })),
   pushHistory: (e) =>
     set((s) => {
-      const history = [e, ...s.history].slice(0, HISTORY_CAP);
+      const history = [{ ...e, id: crypto.randomUUID() }, ...s.history].slice(0, HISTORY_CAP);
       try {
         localStorage.setItem("elasticmin:history", JSON.stringify(history));
       } catch (err) {
@@ -698,14 +697,11 @@ export const useApp = create<AppState>((set, get) => ({
       localStorage.setItem("elasticmin:vim", s.vimMode ? "0" : "1");
       return { vimMode: !s.vimMode };
     }),
-  setEditorFontSize: (size) => {
-    const clamped = Math.min(22, Math.max(10, size || 13));
-    localStorage.setItem("elasticmin:font-size", String(clamped));
-    set({ editorFontSize: clamped });
-  },
   setUiFontSize: (size) => {
     const clamped = clampFontSize(size || DEFAULT_FONT_SIZE);
     localStorage.setItem("elasticmin:ui-font-size", String(clamped));
+    // clean up the legacy editor-only key now that editor uses the same setting
+    localStorage.removeItem("elasticmin:font-size");
     set({ uiFontSize: clamped });
   },
   setAiProvider: (p) =>

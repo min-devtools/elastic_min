@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { closeTabWithConfirm, useApp } from "../store";
 import { useIndices } from "../lib/queries";
 import { copyActiveQueryAsCurl, runActiveQuery } from "../lib/runQuery";
@@ -146,8 +147,6 @@ export function CommandPalette() {
       ?.scrollIntoView({ block: "nearest" });
   }, [cursor, filtered]);
 
-  if (!commandOpen) return null;
-
   const runCommand = (cmd: Command) => {
     setCommandOpen(false);
     pushRecent(cmd.label);
@@ -155,54 +154,70 @@ export function CommandPalette() {
   };
 
   return (
-    <div
-      className="command"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) setCommandOpen(false);
-      }}
-    >
-      <div className="palette">
-        <input
-          ref={inputRef}
-          value={input}
-          placeholder="Run command, open index, execute saved query..."
-          onChange={(e) => {
-            setInput(e.target.value);
-            setCursor(0);
+    <AnimatePresence>
+      {commandOpen && (
+        <motion.div
+          key="command-palette-backdrop"
+          className="command"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.16, ease: [0.32, 0.72, 0, 1] }}
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setCommandOpen(false);
           }}
-          onKeyDown={(e) => {
-            const next = e.key === "Tab" || (vimMode && e.ctrlKey && e.key.toLowerCase() === "n");
-            const previous = vimMode && e.ctrlKey && e.key.toLowerCase() === "p";
-            if (e.key === "ArrowDown" || next) {
-              e.preventDefault();
-              setCursor((c) => Math.min(Math.max(0, filtered.length - 1), c + 1));
-            }
-            if (e.key === "ArrowUp" || previous) {
-              e.preventDefault();
-              setCursor((c) => Math.max(0, c - 1));
-            }
-            if (e.key === "Enter" && filtered[cursor]) runCommand(filtered[cursor]);
-            if (e.key === "Escape") setCommandOpen(false);
-          }}
-        />
-        <div className="cmd-list" ref={listRef}>
-          {filtered.map((cmd, i) => (
-            <Fragment key={cmd.label}>
-              {(i === 0 || filtered[i - 1].recent !== cmd.recent) && <div className="cmd-group">{cmd.recent ? "Recents" : "Commands"}</div>}
-              <div
-                className={`cmd ${i === cursor ? "active" : ""}`}
-                onMouseEnter={() => setCursor(i)}
-                onClick={() => runCommand(cmd)}
-              >
-                <Icon name={cmd.icon} size={15} />
-                <span>{renderHL(cmd.label, cmd.labelIdx)}</span>
-                {cmd.kbd ? <span className="kbd">{cmd.kbd}</span> : <span />}
-              </div>
-            </Fragment>
-          ))}
-          {filtered.length === 0 && <div className="empty-note">No matching commands.</div>}
-        </div>
-      </div>
-    </div>
+        >
+          <motion.div
+            key="command-palette-modal"
+            className="palette"
+            initial={{ opacity: 0, y: -12, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -12, scale: 0.98 }}
+            transition={{ type: "spring", stiffness: 450, damping: 32 }}
+          >
+            <input
+              ref={inputRef}
+              value={input}
+              placeholder="Run command, open index, execute saved query..."
+              onChange={(e) => {
+                setInput(e.target.value);
+                setCursor(0);
+              }}
+              onKeyDown={(e) => {
+                const next = e.key === "Tab" || (vimMode && e.ctrlKey && e.key.toLowerCase() === "n");
+                const previous = vimMode && e.ctrlKey && e.key.toLowerCase() === "p";
+                if (e.key === "ArrowDown" || next) {
+                  e.preventDefault();
+                  setCursor((c) => Math.min(Math.max(0, filtered.length - 1), c + 1));
+                }
+                if (e.key === "ArrowUp" || previous) {
+                  e.preventDefault();
+                  setCursor((c) => Math.max(0, c - 1));
+                }
+                if (e.key === "Enter" && filtered[cursor]) runCommand(filtered[cursor]);
+                if (e.key === "Escape") setCommandOpen(false);
+              }}
+            />
+            <div className="cmd-list" ref={listRef}>
+              {filtered.map((cmd, i) => (
+                <Fragment key={cmd.label}>
+                  {(i === 0 || filtered[i - 1].recent !== cmd.recent) && <div className="cmd-group">{cmd.recent ? "Recents" : "Commands"}</div>}
+                  <div
+                    className={`cmd ${i === cursor ? "active" : ""}`}
+                    onMouseEnter={() => setCursor(i)}
+                    onClick={() => runCommand(cmd)}
+                  >
+                    <Icon name={cmd.icon} size={15} />
+                    <span>{renderHL(cmd.label, cmd.labelIdx)}</span>
+                    {cmd.kbd ? <span className="kbd">{cmd.kbd}</span> : <span />}
+                  </div>
+                </Fragment>
+              ))}
+              {filtered.length === 0 && <div className="empty-note">No matching commands.</div>}
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

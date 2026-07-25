@@ -1,3 +1,4 @@
+import { motion, AnimatePresence } from "motion/react";
 import { ToolButton } from "../../ui/ToolButton";
 import { Badge } from "../../ui/Badge";
 import { Icon } from "../../ui/Icon";
@@ -6,6 +7,7 @@ import { activeConnection, useApp } from "../../store";
 import { runQueryTab } from "../../lib/runQuery";
 import { sortRows, useSort } from "../../lib/useSort";
 import type { HistoryEntry } from "../../lib/types";
+import { formatNumber } from "../../lib/format";
 import { pressable } from "../../ui/pressable";
 
 function timeOf(at: number): string {
@@ -47,7 +49,7 @@ export function HistoryView({ active }: { active: boolean }) {
       <div className="index-searchbar">
         <div className="seg">
           <strong>Query History</strong>
-          <Badge>{history.length} runs</Badge>
+          <Badge>{formatNumber(history.length)} runs</Badge>
         </div>
         <span />
         <span style={{ color: "var(--text-3)" }}>
@@ -79,8 +81,17 @@ export function HistoryView({ active }: { active: boolean }) {
             </tr>
           </thead>
           <tbody>
-            {sorted.map((e, i) => (
-              <tr key={`${e.at}-${i}`} onClick={() => reopen(e, false)} {...pressable(() => reopen(e, false))}>
+            <AnimatePresence initial={false}>
+              {sorted.map((e) => (
+                <motion.tr
+                  key={e.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.14 }}
+                  onClick={() => reopen(e, false)}
+                  {...pressable(() => reopen(e, false))}
+                >
                 <td><span className="cell-date" title={new Date(e.at).toLocaleString()}>{timeOf(e.at)}</span></td>
                 <td>
                   <span
@@ -102,14 +113,15 @@ export function HistoryView({ active }: { active: boolean }) {
                   </span>
                 </td>
                 <td><span className="cell-date">{e.timeMs}ms</span></td>
-                <td>{e.hits ?? "—"}</td>
-                <td onClick={(ev) => ev.stopPropagation()}>
-                  <ToolButton title="Re-run now" aria-label="Re-run query now" onClick={() => reopen(e, true)}>
-                    <Icon name="play" />
-                  </ToolButton>
-                </td>
-              </tr>
-            ))}
+                <td>{formatNumber(e.hits)}</td>
+                  <td onClick={(ev) => ev.stopPropagation()}>
+                    <ToolButton title="Re-run now" aria-label="Re-run query now" onClick={() => reopen(e, true)}>
+                      <Icon name="play" />
+                    </ToolButton>
+                  </td>
+                </motion.tr>
+              ))}
+            </AnimatePresence>
             {!history.length && (
               <tr><td colSpan={8} style={{ color: "var(--text-3)" }}>no queries executed yet</td></tr>
             )}

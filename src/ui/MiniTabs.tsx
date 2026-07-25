@@ -1,3 +1,5 @@
+import { motion } from "motion/react";
+
 export interface MiniTab {
   id: string;
   label: string;
@@ -15,14 +17,15 @@ export function MiniTabs({
   return (
     <div className="mini-tabs">
       {tabs.map((t) => (
-        <button
+        <motion.button
           key={t.id}
           type="button"
+          whileTap={{ scale: 0.96 }}
           className={t.id === active ? "active" : ""}
           onClick={() => onChange(t.id)}
         >
           {t.label}
-        </button>
+        </motion.button>
       ))}
     </div>
   );

@@ -60,8 +60,6 @@ export function SettingsView({ active }: { active: boolean }) {
   const toggleCompact = useApp((s) => s.toggleCompact);
   const vimMode = useApp((s) => s.vimMode);
   const toggleVim = useApp((s) => s.toggleVim);
-  const editorFontSize = useApp((s) => s.editorFontSize);
-  const setEditorFontSize = useApp((s) => s.setEditorFontSize);
   const uiFontSize = useApp((s) => s.uiFontSize);
   const setUiFontSize = useApp((s) => s.setUiFontSize);
   const uiFont = useApp((s) => s.uiFont);
@@ -130,18 +128,6 @@ export function SettingsView({ active }: { active: boolean }) {
             title="Editor font family"
             desc="Monospace recommended. Applies to the query editor and JSON views."
             control={<FontSelect value={editorFont} fonts={fontList} onChange={setEditorFont} />}
-          />
-          <Row
-            icon="pencil"
-            title="Editor font size"
-            desc={`10 – 22 px, applies to all query tabs. Current: ${editorFontSize}px.`}
-            control={
-              <div style={{ display: "flex", gap: 6 }}>
-                <ToolButton iconOnly title="Decrease editor font" onClick={() => setEditorFontSize(editorFontSize - 1)}>−</ToolButton>
-                <ToolButton title="Reset to default" onClick={() => setEditorFontSize(0)}>{editorFontSize}px</ToolButton>
-                <ToolButton iconOnly title="Increase editor font" onClick={() => setEditorFontSize(editorFontSize + 1)}>+</ToolButton>
-              </div>
-            }
           />
           <Row
             icon="rows"

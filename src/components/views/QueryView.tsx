@@ -7,7 +7,7 @@ import { Icon } from "../../ui/Icon";
 import { useApp } from "../../store";
 import { useActiveConnection, useMappingFields } from "../../lib/queries";
 import { loadVimMode, MONACO_THEME, setCompletionFields } from "../../lib/monaco";
-import { startResize } from "../ResizeHandles";
+import { startResize, toggleQueryExpand } from "../ResizeHandles";
 import { ResultsPanel } from "./ResultsPanel";
 import { copyActiveQueryAsCurl, runQueryTab, saveActiveQuery } from "../../lib/runQuery";
 
@@ -21,7 +21,7 @@ function indexFromPath(path: string): string {
 export function QueryView({ tabId, active }: { tabId: string; active: boolean }) {
   const conn = useActiveConnection();
   const vimMode = useApp((s) => s.vimMode);
-  const editorFontSize = useApp((s) => s.editorFontSize);
+  const uiFontSize = useApp((s) => s.uiFontSize);
   const editorFont = useApp((s) => s.editorFont);
   const qt = useApp((s) => s.queryTabs[tabId]);
   const updateQueryTab = useApp((s) => s.updateQueryTab);
@@ -177,8 +177,8 @@ export function QueryView({ tabId, active }: { tabId: string; active: boolean })
             onMount={onMount}
             options={{
               minimap: { enabled: false },
-              fontSize: editorFontSize,
-              lineHeight: Math.round(editorFontSize * 1.6),
+              fontSize: uiFontSize,
+              lineHeight: Math.round(uiFontSize * 1.6),
               fontFamily: editorFont
                 ? `"${editorFont}", ui-monospace, Menlo, monospace`
                 : '"Google Sans Code", "Berkeley Mono", ui-monospace, Menlo, Consolas, monospace',
@@ -202,8 +202,9 @@ export function QueryView({ tabId, active }: { tabId: string; active: boolean })
       </div>
       <div
         className="query-resizer"
-        title="Resize query and results panes"
+        title="Resize query and results panes (Double click to toggle max height)"
         onPointerDown={(e) => startResize(e, "query")}
+        onDoubleClick={toggleQueryExpand}
       />
       <ResultsPanel tabId={tabId} />
     </section>

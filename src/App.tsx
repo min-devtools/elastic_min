@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { motion } from "motion/react";
 import { Titlebar } from "./components/Titlebar";
 import { Sidebar } from "./components/Sidebar";
 import { TabsBar } from "./components/TabsBar";
@@ -218,24 +219,28 @@ export default function App() {
         <PanelResizeHandles />
       </main>
       <Statusbar />
-      <button
+      <motion.button
         type="button"
+        whileHover={{ scale: 1.08 }}
+        whileTap={{ scale: 0.92 }}
         className={`tool-btn panel-toggle panel-corner left ${leftCollapsed ? "" : "active"}`}
         title="Toggle left sidebar (⌘B)"
         aria-label="Toggle left sidebar"
         onClick={toggleLeft}
       >
         <Icon name="panel-left" />
-      </button>
-      <button
+      </motion.button>
+      <motion.button
         type="button"
+        whileHover={{ scale: 1.08 }}
+        whileTap={{ scale: 0.92 }}
         className={`tool-btn panel-toggle panel-corner right ${rightCollapsed || !inspectorOk ? "" : "active"}`}
         title="Toggle right inspector (⌘R)"
         aria-label="Toggle right inspector"
         onClick={toggleRight}
       >
         <Icon name="panel-right" />
-      </button>
+      </motion.button>
       <CommandPalette />
       <Toast />
       <Dialog />

@@ -1,17 +1,21 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
+import { motion, AnimatePresence } from "motion/react";
 import { ToolButton } from "../../ui/ToolButton";
 import { Badge } from "../../ui/Badge";
 import { JsonResponseViewer } from "../../ui/JsonResponseViewer";
 import { SectionVeil } from "../../ui/SectionVeil";
 import { Icon } from "../../ui/Icon";
 import { SortTh } from "../../ui/SortTh";
+import { ColumnControls } from "../../ui/ColumnControls";
 import { selectDocWithConfirm, useApp } from "../../store";
 import { useActiveConnection } from "../../lib/queries";
 import { esJson } from "../../lib/es";
-import { formatValue, getPath, valueClass } from "../../lib/format";
+import { toggleQueryExpand } from "../ResizeHandles";
+import { formatNumber, formatValue, getPath, valueClass } from "../../lib/format";
 import { runQueryTab } from "../../lib/runQuery";
 import { sortRows, useSort } from "../../lib/useSort";
+import { reorder, reorderVisible, syncColumnOrder } from "../../lib/columnOrder";
 
 export function ResultsPanel({ tabId }: { tabId: string }) {
   const conn = useActiveConnection();
@@ -20,7 +24,11 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
   const showToast = useApp((s) => s.showToast);
   const openDialog = useApp((s) => s.openDialog);
   const [paths, setPaths] = useState<string[]>([]);
-  const [pathInput, setPathInput] = useState("");
+  const [enabledPaths, setEnabledPaths] = useState<Set<string>>(new Set());
+  const [columnOrder, setColumnOrder] = useState<string[]>([]);
+  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   // raw top-level columns by default; normalized JSON-path view is opt-in
   const [normalized, setNormalized] = useState(false);
   const [view, setView] = useState<"table" | "json">("table");
@@ -34,11 +42,32 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
   const hits = result?.hits ?? null;
   const showJson = view === "json" || !hits;
 
+  // read `view` inside the result effect without listing it as a dep — a dep would re-fire
+  // the effect on a manual toggle and immediately force JSON back on
+  const viewRef = useRef(view);
+  viewRef.current = view;
+  /** true while the JSON view was switched on for us by an aggregation result, not by the user */
+  const autoJson = useRef(false);
+
   // new result = new doc set — stale selections would make "Copy/Delete N" lie
   useEffect(() => {
     setSelected(new Set());
     setPage(1);
-  }, [hits]);
+    const rawObj = result?.raw as Record<string, unknown> | null;
+    const hasAggs =
+      !!rawObj && typeof rawObj === "object" && ("aggregations" in rawObj || "aggs" in rawObj);
+    // aggregations have no rows to tabulate, so force JSON — but only the switch we made is
+    // ours to undo, otherwise the next plain query would stomp a manual JSON toggle
+    if (hasAggs) {
+      if (viewRef.current === "table") {
+        autoJson.current = true;
+        setView("json");
+      }
+    } else if (autoJson.current) {
+      autoJson.current = false;
+      setView("table");
+    }
+  }, [result]);
 
   // docs across indices can share an _id — selection/keys must be index-qualified
   const keyOf = (h: { _index: string; _id: string }) => `${h._index}/${h._id}`;
@@ -62,6 +91,11 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
     }
     return [...cols]; // all columns — the grid scrolls horizontally
   }, [hits]);
+
+  // initialize / extend raw column order when the result set changes
+  useEffect(() => {
+    setColumnOrder((prev) => syncColumnOrder(prev, rawColumns));
+  }, [rawColumns]);
 
   // lowercase haystack built once per result, not per filter keystroke
   const haystacks = useMemo(() => {
@@ -95,19 +129,80 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
   };
   const allPageSelected = paged.length > 0 && paged.every((h) => selected.has(keyOf(h)));
 
-  const columns = normalized ? paths : rawColumns;
+  const columns = normalized ? paths.filter((p) => enabledPaths.has(p)) : columnOrder.filter((c) => !hiddenColumns.has(c));
 
-  const addPath = () => {
-    const p = pathInput.trim();
-    if (!p) return;
+  const toggleColumn = (col: string) => {
+    setHiddenColumns((prev) => {
+      const next = new Set(prev);
+      if (next.has(col)) next.delete(col);
+      else next.add(col);
+      return next;
+    });
+  };
+
+  const moveColumn = (from: number, to: number) => setColumnOrder((prev) => reorder(prev, from, to));
+
+  const showAllColumns = () => setHiddenColumns(new Set());
+  const hideAllColumns = () => setHiddenColumns(new Set(rawColumns));
+
+  const movePath = (from: number, to: number) => setPaths((prev) => reorder(prev, from, to));
+
+  // drag & drop reorder for table headers
+  const headerDragStart = (index: number) => (e: React.DragEvent) => {
+    setDragIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+  };
+  const headerDragOver = (index: number) => (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverIndex(index);
+  };
+  const headerDrop = (index: number) => (e: React.DragEvent) => {
+    e.preventDefault();
+    const from = dragIndex;
+    if (from !== null && from !== index) {
+      // headers render only the visible columns — reorderVisible maps back past the hidden ones
+      const apply = normalized ? setPaths : setColumnOrder;
+      apply((prev) => reorderVisible(prev, columns, from, index));
+    }
+    setDragIndex(null);
+    setDragOverIndex(null);
+  };
+  const headerDragEnd = () => {
+    setDragIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const addPath = (p: string) => {
     setPaths((prev) => (prev.includes(p) ? prev : [...prev, p]));
+    setEnabledPaths((prev) => new Set(prev).add(p));
     setNormalized(true);
-    setPathInput("");
   };
 
   const removePath = (p: string) => {
-    setPaths((prev) => prev.filter((x) => x !== p));
+    setPaths((prev) => {
+      const next = prev.filter((x) => x !== p);
+      if (next.length === 0) setNormalized(false);
+      return next;
+    });
+    setEnabledPaths((prev) => {
+      const next = new Set(prev);
+      next.delete(p);
+      return next;
+    });
   };
+
+  const togglePath = (p: string) => {
+    setEnabledPaths((prev) => {
+      const next = new Set(prev);
+      if (next.has(p)) next.delete(p);
+      else next.add(p);
+      return next;
+    });
+  };
+
+  const enableAll = () => setEnabledPaths(new Set(paths));
+  const disableAll = () => setEnabledPaths(new Set());
 
   const toggleRow = (id: string, checked: boolean) => {
     setSelected((prev) => {
@@ -162,81 +257,135 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
     }
   };
 
-  const meta = result
-    ? result.error
-      ? `error · ${result.error.slice(0, 80)}`
-      : hits
-        ? `${result.total ?? hits.length} hits · ${normalized ? "normalized preview" : "raw columns"} · ${result.timeMs}ms`
-        : `HTTP ${result.status} · ${result.timeMs}ms`
-    : "run the query to load results";
+  const renderMeta = () => {
+    if (!result) {
+      return <span className="result-meta muted">run the query to load results</span>;
+    }
+    if (result.error) {
+      return (
+        <div className="result-meta-tags">
+          <Badge tone="red">error · {result.error.slice(0, 80)}</Badge>
+        </div>
+      );
+    }
+    if (hits) {
+      const hitCount = formatNumber(result.total ?? hits.length);
+      return (
+        <div className="result-meta-tags">
+          <span className="result-hits-badge">
+            <strong>{hitCount}</strong> hits
+          </span>
+          <span className="meta-dot">·</span>
+          <Badge tone="idle">{normalized ? "normalized preview" : "raw columns"}</Badge>
+          <span className="meta-dot">·</span>
+          <span className="result-time-pill">{result.timeMs}ms</span>
+        </div>
+      );
+    }
+    return (
+      <div className="result-meta-tags">
+        <Badge tone="blue">HTTP {result.status}</Badge>
+        <span className="meta-dot">·</span>
+        <span className="result-time-pill">{result.timeMs}ms</span>
+      </div>
+    );
+  };
 
   return (
     <div className="results">
-      <div className="result-head">
+      {/* double-click the chrome to collapse/expand the editor pane, but never steal a
+          double-click that was aimed at an input, button or select inside the head */}
+      <div
+        className="result-head"
+        onDoubleClick={(e) => {
+          if ((e.target as HTMLElement).closest("input, textarea, button, select, a")) return;
+          toggleQueryExpand();
+        }}
+      >
         <div className="result-headline">
           <div className="seg">
             <strong>Search Results</strong>
-            <span className="result-meta">{meta}</span>
+            {renderMeta()}
           </div>
           <div className="seg">
-            {selected.size > 0 && (
-              <ToolButton
-                title="Copy selected documents as JSON"
-                onClick={() => void bulkCopy()}
-              >
-                <Icon name="copy" /> Copy {selected.size}
-              </ToolButton>
-            )}
-            {selected.size > 0 && (
-              <ToolButton
-                variant="danger"
-                title="Delete selected documents from the cluster (_bulk)"
-                onClick={() => void bulkDelete()}
-              >
-                <Icon name="trash" /> Delete {selected.size}
-              </ToolButton>
-            )}
+            <AnimatePresence initial={false}>
+              {selected.size > 0 && (
+                <motion.span
+                  key="bulk-actions"
+                  layout
+                  initial={{ opacity: 0, scale: 0.9, width: 0 }}
+                  animate={{ opacity: 1, scale: 1, width: "auto" }}
+                  exit={{ opacity: 0, scale: 0.9, width: 0 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                  style={{ display: "flex", gap: 8, overflow: "hidden" }}
+                >
+                  <ToolButton
+                    title="Copy selected documents as JSON"
+                    onClick={() => void bulkCopy()}
+                  >
+                    <Icon name="copy" /> Copy {selected.size}
+                  </ToolButton>
+                  <ToolButton
+                    variant="danger"
+                    title="Delete selected documents from the cluster (_bulk)"
+                    onClick={() => void bulkDelete()}
+                  >
+                    <Icon name="trash" /> Delete {selected.size}
+                  </ToolButton>
+                </motion.span>
+              )}
+            </AnimatePresence>
             <ToolButton
               title={normalized ? "Switch to raw top-level columns" : "Switch to JSON-path columns"}
+              className={normalized && enabledPaths.size > 0 ? "active" : ""}
+              disabled={paths.length === 0}
               onClick={() => setNormalized((n) => !n)}
             >
               <Icon name="table" /> {normalized ? "Normalized on" : "Raw columns"}
             </ToolButton>
             <ToolButton
               title={`Switch to ${view === "table" ? "JSON" : "table"} view`}
-              onClick={() => setView((current) => (current === "table" ? "json" : "table"))}
+              onClick={() => {
+                autoJson.current = false; // manual choice — the next result must not undo it
+                setView((current) => (current === "table" ? "json" : "table"));
+              }}
             >
               <Icon name={view === "table" ? "braces" : "table"} /> {view === "table" ? "JSON" : "Table"}
             </ToolButton>
           </div>
         </div>
-        {view === "table" && <div className="path-preview">
-          <input
-            className="path-input"
-            value={filter}
-            placeholder="Search loaded results"
-            onChange={(e) => {
-              setFilter(e.target.value);
-              setPage(1);
-            }}
-          />
-          <input
-            className="path-input"
-            value={pathInput}
-            placeholder="Add JSON path, e.g. payment.provider or fulfillment.state"
-            onChange={(e) => setPathInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") addPath();
-            }}
-          />
-          <ToolButton onClick={addPath}><Icon name="plus" /> Add path</ToolButton>
-        </div>}
+        {view === "table" && (
+          <div className="path-preview">
+            <input
+              className="path-input"
+              value={filter}
+              placeholder="Search loaded results"
+              onChange={(e) => {
+                setFilter(e.target.value);
+                setPage(1);
+              }}
+            />
+            <ColumnControls
+              columns={normalized ? paths : columnOrder}
+              visibleColumns={columns}
+              onToggle={normalized ? togglePath : toggleColumn}
+              onMove={normalized ? movePath : moveColumn}
+              onShowAll={normalized ? enableAll : showAllColumns}
+              onHideAll={normalized ? disableAll : hideAllColumns}
+              onAddPath={normalized ? addPath : undefined}
+              paths={paths}
+              enabledPaths={enabledPaths}
+              onTogglePath={togglePath}
+              onRemovePath={removePath}
+            />
+          </div>
+        )}
       </div>
       <div className="result-grid">
         {/* running = a blocking user-initiated query run, not a background refetch */}
         <SectionVeil on={!!qt?.running} label="Running query…" />
         {result?.error && (
-          <div className="err-note">
+          <div className="err-note result-reveal" key={result.error}>
             {result.error}
             <ToolButton title="Run the query again" onClick={() => void runQueryTab(tabId)}>
               <Icon name="refresh" /> Retry
@@ -244,7 +393,7 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
           </div>
         )}
         {!result?.error && view === "table" && hits && (
-          <table>
+          <table className="result-reveal" key={`${view}-${result?.timeMs ?? 0}`}>
             <thead>
               <tr>
                 <th>
@@ -265,13 +414,19 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
                 <SortTh col="_id" sort={sort} onSort={cycleSort} title="Click to sort loaded hits: desc → asc → off">
                   _id
                 </SortTh>
-                {columns.map((c) => (
+                {columns.map((c, idx) => (
                   <SortTh
                     key={c}
                     col={c}
                     sort={sort}
                     onSort={cycleSort}
-                    title="Click to sort loaded hits: desc → asc → off"
+                    title="Click to sort loaded hits: desc → asc → off · drag to reorder"
+                    draggable
+                    className={`${dragIndex === idx ? "dragging" : ""} ${dragOverIndex === idx ? "drag-over" : ""}`}
+                    onDragStart={headerDragStart(idx)}
+                    onDragOver={headerDragOver(idx)}
+                    onDrop={headerDrop(idx)}
+                    onDragEnd={headerDragEnd}
                   >
                     {c}
                     {normalized && (
@@ -341,6 +496,8 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
             </tbody>
           </table>
         )}
+        {/* no `result-reveal` + key on the host below: replaying that keyframe needs a remount,
+            and the remount tears down and rebuilds the whole Monaco instance on every run */}
         {!result?.error && result != null && (view === "json" || !hits) && (
           <div className="result-editor-host">
             <JsonResponseViewer value={rawJson} />
@@ -360,7 +517,7 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
         </div>
         <div className="seg">
           <span>
-            {total === 0 ? 0 : (safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, total)} of {total}
+            {total === 0 ? 0 : formatNumber((safePage - 1) * pageSize + 1)}–{formatNumber(Math.min(safePage * pageSize, total))} of {formatNumber(total)}
           </span>
           <select
             className="page-size"

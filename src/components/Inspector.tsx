@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence } from "motion/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Kv } from "../ui/Kv";
 import { MiniTabs } from "../ui/MiniTabs";
@@ -153,16 +154,18 @@ export function Inspector() {
         </div>
       )}
       {pane === "ai" && <AiChat />}
-      {diffOpen && selectedDoc && (
-        <DiffModal
-          title="Review changes before save"
-          badge={`${selectedDoc._index} / ${selectedDoc._id}`}
-          before={original}
-          after={draft}
-          onCancel={() => setDiffOpen(false)}
-          onConfirm={() => void save()}
-        />
-      )}
+      <AnimatePresence>
+        {diffOpen && selectedDoc && (
+          <DiffModal
+            title="Review changes before save"
+            badge={`${selectedDoc._index} / ${selectedDoc._id}`}
+            before={original}
+            after={draft}
+            onCancel={() => setDiffOpen(false)}
+            onConfirm={() => void save()}
+          />
+        )}
+      </AnimatePresence>
     </aside>
   );
 }

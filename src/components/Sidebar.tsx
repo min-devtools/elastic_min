@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { Badge } from "../ui/Badge";
 import { IndexDot } from "../ui/Pills";
 import { ContextMenu, type ContextMenuItem } from "../ui/ContextMenu";
@@ -6,7 +7,7 @@ import { activeConnId as activeConnIdOf, useApp } from "../store";
 import { connStyle } from "../lib/connColor";
 import { ColorPicker } from "../ui/ColorPicker";
 import { useActiveConnection, useClusterHealth, useIndices } from "../lib/queries";
-import { formatDocCount } from "../lib/format";
+import { formatDocCount, formatNumber } from "../lib/format";
 import type { TabKind } from "../lib/types";
 import { Icon, type IconName } from "../ui/Icon";
 import { pressable } from "../ui/pressable";
@@ -85,10 +86,6 @@ export function Sidebar() {
   const filteredSavedQueries = savedQueries.filter((sq) => !q || sq.name.toLowerCase().includes(q));
   const shownSavedQueries = filteredSavedQueries.slice(0, SIDEBAR_CAP);
   const hiddenSavedQueryCount = Math.max(0, filteredSavedQueries.length - SIDEBAR_CAP);
-  const aliasCount = useMemo(
-    () => new Set((indices.data ?? []).flatMap((i) => i.aliases)).size,
-    [indices.data],
-  );
 
   const confirmDeleteConnection = async (id: string) => {
     const c = connections.find((x) => x.id === id);
@@ -217,87 +214,101 @@ export function Sidebar() {
           >
             <Icon name="plus" className="soft-blue" /><span>New Connection</span><Badge>setup</Badge>
           </div>
-          {connections.map((c) => (
-            <div
-              key={c.id}
-              draggable
-              className={`nav-item ${c.id === activeConnId ? "active" : ""} ${dragId === c.id ? "dragging" : ""} ${dropTarget?.id === c.id && dragId && dragId !== c.id ? (dropTarget.before ? "drop-before" : "drop-after") : ""}`}
-              onClick={() => setActiveConn(c.id)}
-              {...pressable(() => setActiveConn(c.id))}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                setConnMenu({ x: e.clientX, y: e.clientY, id: c.id });
-              }}
-              onDragStart={(e) => {
-                setDragId(c.id);
-                e.dataTransfer.effectAllowed = "move";
-                e.dataTransfer.setData("application/x-elasticmin-conn", c.id);
-              }}
-              onDragEnd={() => { setDragId(null); setDropTarget(null); }}
-              onDragOver={(e) => {
-                if (!dragId || dragId === c.id) return;
-                e.preventDefault();
-                e.dataTransfer.dropEffect = "move";
-                const rect = e.currentTarget.getBoundingClientRect();
-                setDropTarget({ id: c.id, before: e.clientY < rect.top + rect.height / 2 });
-              }}
-              onDragLeave={(e) => {
-                if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                  setDropTarget((t) => (t?.id === c.id ? null : t));
-                }
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                const id = draggedConnId(e);
-                if (id && id !== c.id) {
+          <AnimatePresence initial={false}>
+            {connections.map((c) => (
+              <motion.div
+                key={c.id}
+                layout
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ type: "spring", stiffness: 450, damping: 32 }}
+                draggable
+                className={`nav-item ${c.id === activeConnId ? "active" : ""} ${dragId === c.id ? "dragging" : ""} ${dropTarget?.id === c.id && dragId && dragId !== c.id ? (dropTarget.before ? "drop-before" : "drop-after") : ""}`}
+                onClick={() => setActiveConn(c.id)}
+                {...pressable(() => setActiveConn(c.id))}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setConnMenu({ x: e.clientX, y: e.clientY, id: c.id });
+                }}
+                onDragStart={(e: any) => {
+                  setDragId(c.id);
+                  e.dataTransfer.effectAllowed = "move";
+                  e.dataTransfer.setData("application/x-elasticmin-conn", c.id);
+                }}
+                onDragEnd={() => { setDragId(null); setDropTarget(null); }}
+                onDragOver={(e: any) => {
+                  if (!dragId || dragId === c.id) return;
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
                   const rect = e.currentTarget.getBoundingClientRect();
-                  const before = e.clientY < rect.top + rect.height / 2;
-                  const nextId = before
-                    ? c.id
-                    : connections[connections.findIndex((cc) => cc.id === c.id) + 1]?.id ?? null;
-                  reorderConn(id, nextId);
-                }
-                setDragId(null);
-                setDropTarget(null);
-              }}
-            >
-              <span
-                className="conn-dot"
-                style={connStyle(c.color)}
-                title={c.color ? `Color: ${c.color}` : "No color — right-click to set one"}
-              />
-              <span>{c.name}</span>
-              <Badge tone={c.id === activeConnId ? health.data?.status ?? "idle" : "idle"}>
-                {c.id === activeConnId ? health.data?.status ?? "connecting…" : "idle"}
-              </Badge>
-            </div>
-          ))}
+                  setDropTarget({ id: c.id, before: e.clientY < rect.top + rect.height / 2 });
+                }}
+                onDragLeave={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                    setDropTarget((t) => (t?.id === c.id ? null : t));
+                  }
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const id = draggedConnId(e);
+                  if (id && id !== c.id) {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const before = e.clientY < rect.top + rect.height / 2;
+                    const nextId = before
+                      ? c.id
+                      : connections[connections.findIndex((cc) => cc.id === c.id) + 1]?.id ?? null;
+                    reorderConn(id, nextId);
+                  }
+                  setDragId(null);
+                  setDropTarget(null);
+                }}
+              >
+                <span
+                  className="conn-dot"
+                  style={connStyle(c.color)}
+                  title={c.color ? `Color: ${c.color}` : "No color — right-click to set one"}
+                />
+                <span>{c.name}</span>
+                <Badge tone={c.id === activeConnId ? health.data?.status ?? "idle" : "idle"}>
+                  {c.id === activeConnId ? health.data?.status ?? "connecting…" : "idle"}
+                </Badge>
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
 
         {savedQueries.length > 0 && (
           <div className="group">
-            <div className="group-title"><span>Saved queries</span><span>{savedQueries.length}</span></div>
-            {shownSavedQueries.map((sq) => (
-              <div
-                key={sq.id}
-                className="nav-item"
-                title={`${sq.method} ${sq.path}`}
-                onClick={() => newQueryTab({ method: sq.method, path: sq.path, body: sq.body })}
-                {...pressable(() => newQueryTab({ method: sq.method, path: sq.path, body: sq.body }))}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  setQueryMenu({ x: e.clientX, y: e.clientY, id: sq.id });
-                }}
-              >
-                <Icon name="save" className="soft-blue" />
-                <span>{sq.name}</span>
-                <Badge>{sq.method}</Badge>
-              </div>
-            ))}
+            <div className="group-title"><span>Saved queries</span><span>{formatNumber(savedQueries.length)}</span></div>
+            <AnimatePresence initial={false}>
+              {shownSavedQueries.map((sq) => (
+                <motion.div
+                  key={sq.id}
+                  layout
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ type: "spring", stiffness: 450, damping: 32 }}
+                  className="nav-item"
+                  title={`${sq.method} ${sq.path}`}
+                  onClick={() => newQueryTab({ method: sq.method, path: sq.path, body: sq.body })}
+                  {...pressable(() => newQueryTab({ method: sq.method, path: sq.path, body: sq.body }))}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setQueryMenu({ x: e.clientX, y: e.clientY, id: sq.id });
+                  }}
+                >
+                  <Icon name="save" className="soft-blue" />
+                  <span>{sq.name}</span>
+                  <Badge>{sq.method}</Badge>
+                </motion.div>
+              ))}
+            </AnimatePresence>
             {hiddenSavedQueryCount > 0 && (
               <div className="nav-item" onClick={() => openTab("saved-queries")}>
                 <Icon name="more-horizontal" className="soft-blue" />
-                <span>{hiddenSavedQueryCount} more…</span>
+                <span>{formatNumber(hiddenSavedQueryCount)} more…</span>
               </div>
             )}
           </div>
@@ -306,116 +317,119 @@ export function Sidebar() {
         <div className="group">
           <div className="group-title">
             <span>Indexes</span>
-            <span>{indices.data ? indices.data.length : conn ? "…" : ""}</span>
+            <span>{indices.data ? formatNumber(indices.data.length) : conn ? "…" : ""}</span>
           </div>
           {!conn && <div className="empty-note">Connect to a cluster to load indexes.</div>}
-          {shownIndexes.map((i) => (
-            <div
-              key={i.index}
-              className={`index-item ${i.index === activeIndex ? "active" : ""}`}
-              onClick={() => setActiveIndex(i.index)}
-              {...pressable(() => setActiveIndex(i.index))}
-              onDoubleClick={() => {
-                setActiveIndex(i.index);
-                openTab("docs");
-              }}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                setActiveIndex(i.index);
-                setIndexMenu({ x: e.clientX, y: e.clientY, index: i.index });
-              }}
-            >
-              <IndexDot health={i.health} />
-              <span>{i.index}</span>
-              <span>{formatDocCount(i.docsCount)}</span>
-            </div>
-          ))}
+          <AnimatePresence initial={false}>
+            {shownIndexes.map((i) => (
+              <motion.div
+                key={i.index}
+                layout
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ type: "spring", stiffness: 450, damping: 32 }}
+                className={`index-item ${i.index === activeIndex ? "active" : ""}`}
+                onClick={() => setActiveIndex(i.index)}
+                {...pressable(() => setActiveIndex(i.index))}
+                onDoubleClick={() => {
+                  setActiveIndex(i.index);
+                  openTab("docs");
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setActiveIndex(i.index);
+                  setIndexMenu({ x: e.clientX, y: e.clientY, index: i.index });
+                }}
+              >
+                <IndexDot health={i.health} />
+                <span>{i.index}</span>
+                <span>{formatDocCount(i.docsCount)}</span>
+              </motion.div>
+            ))}
+          </AnimatePresence>
           {hiddenIndexCount > 0 && (
             <div className="nav-item" onClick={() => openTab("indexes")}>
               <Icon name="more-horizontal" className="soft-orange" />
-              <span>{hiddenIndexCount} more…</span>
+              <span>{formatNumber(hiddenIndexCount)} more…</span>
             </div>
           )}
         </div>
-
-        {conn && (
-          <div className="group">
-            <div className="group-title"><span>Database objects</span><span /></div>
-            <div className="nav-item" onClick={() => openTab("indexes")}>
-              <Icon name="database" /><span>Aliases</span><span>{aliasCount || ""}</span>
-            </div>
-            <div className="nav-item" onClick={() => openTab("cluster")}>
-              <Icon name="cluster" /><span>Cluster health</span><span>{health.data?.status ?? ""}</span>
-            </div>
-          </div>
-        )}
       </div>
-      {connMenu && (
-        <ContextMenu x={connMenu.x} y={connMenu.y} items={connMenuItems} onClose={() => setConnMenu(null)} />
-      )}
-      {pickingColor && (
-        <ColorPicker
-          value={connections.find((c) => c.id === pickingColor)?.color}
-          onPick={(color) => {
-            const c = connections.find((x) => x.id === pickingColor);
-            if (c) saveConnection({ ...c, color: color ?? undefined });
-          }}
-          onClose={() => setPickingColor(null)}
-        />
-      )}
-      {indexMenu && (
-        <ContextMenu
-          x={indexMenu.x}
-          y={indexMenu.y}
-          onClose={() => setIndexMenu(null)}
-          items={[
-            { icon: "docs", label: "Open Documents", strong: true, onClick: () => openTab("docs") },
-            {
-              icon: "query", label: "Open in Query", strong: true,
-              onClick: () => newQueryTab({ path: `/${indexMenu.index}/_search` }),
-            },
-            { icon: "mapping", label: "Open Mapping", onClick: () => openTab("mapping") },
-            { icon: "activity", label: "Index stats", onClick: () => openTab("index-stats") },
-          ]}
-        />
-      )}
-      {queryMenu && (
-        <ContextMenu
-          x={queryMenu.x}
-          y={queryMenu.y}
-          onClose={() => setQueryMenu(null)}
-          items={[
-            {
-              icon: "query",
-              label: "Open in new Query tab",
-              strong: true,
-              onClick: () => {
-                const sq = savedQueries.find((x) => x.id === queryMenu.id);
-                if (sq) newQueryTab({ method: sq.method, path: sq.path, body: sq.body });
+      <AnimatePresence>
+        {connMenu && (
+          <ContextMenu x={connMenu.x} y={connMenu.y} items={connMenuItems} onClose={() => setConnMenu(null)} />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {pickingColor && (
+          <ColorPicker
+            value={connections.find((c) => c.id === pickingColor)?.color}
+            onPick={(color) => {
+              const c = connections.find((x) => x.id === pickingColor);
+              if (c) saveConnection({ ...c, color: color ?? undefined });
+            }}
+            onClose={() => setPickingColor(null)}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {indexMenu && (
+          <ContextMenu
+            x={indexMenu.x}
+            y={indexMenu.y}
+            onClose={() => setIndexMenu(null)}
+            items={[
+              { icon: "docs", label: "Open Documents", strong: true, onClick: () => openTab("docs") },
+              {
+                icon: "query", label: "Open in Query", strong: true,
+                onClick: () => newQueryTab({ path: `/${indexMenu.index}/_search` }),
               },
-            },
-            {
-              icon: "pencil",
-              label: "Rename",
-              onClick: async () => {
-                const sq = savedQueries.find((x) => x.id === queryMenu.id);
-                const name = await openDialog({
-                  kind: "prompt",
-                  title: "Rename saved query",
-                  defaultValue: sq?.name ?? "",
-                  confirmLabel: "Rename",
-                });
-                if (name?.trim()) renameSavedQuery(queryMenu.id, name);
+              { icon: "mapping", label: "Open Mapping", onClick: () => openTab("mapping") },
+              { icon: "activity", label: "Index stats", onClick: () => openTab("index-stats") },
+            ]}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {queryMenu && (
+          <ContextMenu
+            x={queryMenu.x}
+            y={queryMenu.y}
+            onClose={() => setQueryMenu(null)}
+            items={[
+              {
+                icon: "query",
+                label: "Open in new Query tab",
+                strong: true,
+                onClick: () => {
+                  const sq = savedQueries.find((x) => x.id === queryMenu.id);
+                  if (sq) newQueryTab({ method: sq.method, path: sq.path, body: sq.body });
+                },
               },
-            },
-            {
-              icon: "trash",
-              label: "Delete",
-              onClick: () => void confirmDeleteSavedQuery(queryMenu.id),
-            },
-          ]}
-        />
-      )}
+              {
+                icon: "pencil",
+                label: "Rename",
+                onClick: async () => {
+                  const sq = savedQueries.find((x) => x.id === queryMenu.id);
+                  const name = await openDialog({
+                    kind: "prompt",
+                    title: "Rename saved query",
+                    defaultValue: sq?.name ?? "",
+                    confirmLabel: "Rename",
+                  });
+                  if (name?.trim()) renameSavedQuery(queryMenu.id, name);
+                },
+              },
+              {
+                icon: "trash",
+                label: "Delete",
+                onClick: () => void confirmDeleteSavedQuery(queryMenu.id),
+              },
+            ]}
+          />
+        )}
+      </AnimatePresence>
     </aside>
   );
 }

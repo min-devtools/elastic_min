@@ -7,11 +7,14 @@ import { Icon } from "../../ui/Icon";
 import { SectionVeil } from "../../ui/SectionVeil";
 import { SortTh } from "../../ui/SortTh";
 import { Combobox } from "../../ui/Combobox";
+import { ColumnControls } from "../../ui/ColumnControls";
+import { NoIndexState } from "../../ui/NoIndexState";
 import { selectDocWithConfirm, useApp } from "../../store";
 import { useActiveConnection, useIndices, useMappingFields } from "../../lib/queries";
 import { esJson } from "../../lib/es";
-import { formatDocCount, formatValue, getPath, valueClass } from "../../lib/format";
+import { formatDocCount, formatNumber, formatValue, getPath, valueClass } from "../../lib/format";
 import { nextDocumentSearch } from "../../lib/documentSearch";
+import { reorder, reorderVisible, syncColumnOrder } from "../../lib/columnOrder";
 import type { EsHit } from "../../lib/types";
 
 const PAGE_SIZE = 50;
@@ -33,7 +36,11 @@ export function DocsView({ tabId, active }: { tabId: string; active: boolean }) 
   const [sort, setSort] = useState<{ field: string; dir: SortDir } | null>(null);
   const [normalized, setNormalized] = useState(false);
   const [paths, setPaths] = useState<string[]>([]);
-  const [pathInput, setPathInput] = useState("");
+  const [enabledPaths, setEnabledPaths] = useState<Set<string>>(new Set());
+  const [columnOrder, setColumnOrder] = useState<string[]>([]);
+  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   // reset per-connection search state when the active connection changes
   useEffect(() => {
@@ -43,7 +50,9 @@ export function DocsView({ tabId, active }: { tabId: string; active: boolean }) 
     setSort(null);
     setNormalized(false);
     setPaths([]);
-    setPathInput("");
+    setEnabledPaths(new Set());
+    setColumnOrder([]);
+    setHiddenColumns(new Set());
   }, [conn?.id]);
 
   // sort on .keyword subfield when the mapping says text + keyword
@@ -85,7 +94,26 @@ export function DocsView({ tabId, active }: { tabId: string; active: boolean }) 
     for (const h of hits.slice(0, 20)) Object.keys(h._source ?? {}).forEach((k) => cols.add(k));
     return [...cols]; // all columns — the grid scrolls horizontally
   }, [hits]);
-  const columns = normalized ? paths : rawColumns;
+
+  // initialize / extend raw column order when the doc set changes
+  useEffect(() => {
+    setColumnOrder((prev) => syncColumnOrder(prev, rawColumns));
+  }, [rawColumns]);
+  const columns = normalized ? paths.filter((p) => enabledPaths.has(p)) : columnOrder.filter((c) => !hiddenColumns.has(c));
+
+  const toggleColumn = (col: string) => {
+    setHiddenColumns((prev) => {
+      const next = new Set(prev);
+      if (next.has(col)) next.delete(col);
+      else next.add(col);
+      return next;
+    });
+  };
+
+  const moveColumn = (from: number, to: number) => setColumnOrder((prev) => reorder(prev, from, to));
+
+  const showAllColumns = () => setHiddenColumns(new Set());
+  const hideAllColumns = () => setHiddenColumns(new Set(rawColumns));
 
   if (!dt) return null;
 
@@ -106,19 +134,69 @@ export function DocsView({ tabId, active }: { tabId: string; active: boolean }) 
     if (next.refetch) void search.refetch();
   };
 
-  const addPath = () => {
-    const path = pathInput.trim();
-    if (!path) return;
+  const addPath = (path: string) => {
     setPaths((current) => (current.includes(path) ? current : [...current, path]));
+    setEnabledPaths((current) => new Set(current).add(path));
     setNormalized(true);
-    setPathInput("");
+  };
+
+  const removePath = (path: string) => {
+    setPaths((current) => {
+      const next = current.filter((p) => p !== path);
+      if (next.length === 0) setNormalized(false);
+      return next;
+    });
+    setEnabledPaths((current) => {
+      const next = new Set(current);
+      next.delete(path);
+      return next;
+    });
+  };
+
+  const togglePath = (path: string) => {
+    setEnabledPaths((current) => {
+      const next = new Set(current);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+  };
+
+  const enableAll = () => setEnabledPaths(new Set(paths));
+  const disableAll = () => setEnabledPaths(new Set());
+
+  const movePath = (from: number, to: number) => setPaths((prev) => reorder(prev, from, to));
+
+  // drag & drop reorder for table headers
+  const headerDragStart = (index: number) => (e: React.DragEvent) => {
+    setDragIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+  };
+  const headerDragOver = (index: number) => (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverIndex(index);
+  };
+  const headerDrop = (index: number) => (e: React.DragEvent) => {
+    e.preventDefault();
+    const from = dragIndex;
+    if (from !== null && from !== index) {
+      // headers render only the visible columns — reorderVisible maps back past the hidden ones
+      const apply = normalized ? setPaths : setColumnOrder;
+      apply((prev) => reorderVisible(prev, columns, from, index));
+    }
+    setDragIndex(null);
+    setDragOverIndex(null);
+  };
+  const headerDragEnd = () => {
+    setDragIndex(null);
+    setDragOverIndex(null);
   };
 
   return (
     <section className={`content docs-view ${active ? "active" : ""}`}>
       <div className="doc-head">
         <div className="seg">
-          <strong>Documents</strong>
           <Combobox
             id={`docs-index-${tabId}`}
             value={index}
@@ -129,7 +207,8 @@ export function DocsView({ tabId, active }: { tabId: string; active: boolean }) 
           {applied && <span>/ {applied}</span>}
           <Badge>{search.isFetching ? "loading…" : total ? `${formatDocCount(total)} docs` : ""}</Badge>
         </div>
-        <div className="seg">
+        {/* the filter/column toolbar has nothing to act on until an index is picked */}
+        {index && <div className="seg">
           <ToolButton
             iconOnly
             title={normalized ? "Show raw top-level columns" : "Show normalized JSON-path columns"}
@@ -157,29 +236,28 @@ export function DocsView({ tabId, active }: { tabId: string; active: boolean }) 
               <Icon name="filter" />
             </ToolButton>
           </form>
-          {normalized && (
-            <>
-              <input
-                className="side-search"
-                style={{ width: 220, height: 28 }}
-                list="document-mapping-paths"
-                placeholder="Add JSON path"
-                value={pathInput}
-                onChange={(e) => setPathInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") addPath();
-                }}
-              />
-              <datalist id="document-mapping-paths">
-                {(mapping.data ?? []).map((field) => <option key={field.path} value={field.path} />)}
-              </datalist>
-              <ToolButton iconOnly title="Add JSON path column" aria-label="Add JSON path column" onClick={addPath}>
-                <Icon name="plus" />
-              </ToolButton>
-            </>
-          )}
-        </div>
+          <ColumnControls
+            columns={normalized ? paths : columnOrder}
+            visibleColumns={columns}
+            onToggle={normalized ? togglePath : toggleColumn}
+            onMove={normalized ? movePath : moveColumn}
+            onShowAll={normalized ? enableAll : showAllColumns}
+            onHideAll={normalized ? disableAll : hideAllColumns}
+            onAddPath={normalized ? addPath : undefined}
+            paths={paths}
+            enabledPaths={enabledPaths}
+            onTogglePath={togglePath}
+            onRemovePath={removePath}
+          />
+        </div>}
       </div>
+      {!index ? (
+        <NoIndexState
+          title="No index selected"
+          hint="Pick one below to browse its documents — or open All Indexes for the full list."
+          onPick={(i) => setDocsTabIndex(tabId, i)}
+        />
+      ) : (
       <div className="result-grid">
         {/* isLoading = first fetch with no data yet; placeholderData keeps later refetches veil-free */}
         <SectionVeil on={search.isLoading} label="Loading documents…" />
@@ -195,13 +273,19 @@ export function DocsView({ tabId, active }: { tabId: string; active: boolean }) 
           <thead>
             <tr>
               <th>_id</th>
-              {columns.map((c) => (
+              {columns.map((c, idx) => (
                 <SortTh
                   key={c}
                   col={c}
                   sort={sort ? { col: sort.field, dir: sort.dir } : null}
                   onSort={cycleSort}
-                  title="Click to sort: desc → asc → off"
+                  title="Click to sort: desc → asc → off · drag to reorder"
+                  draggable
+                  className={`${dragIndex === idx ? "dragging" : ""} ${dragOverIndex === idx ? "drag-over" : ""}`}
+                  onDragStart={headerDragStart(idx)}
+                  onDragOver={headerDragOver(idx)}
+                  onDrop={headerDrop(idx)}
+                  onDragEnd={headerDragEnd}
                 >
                   {c}
                   {normalized && (
@@ -210,7 +294,7 @@ export function DocsView({ tabId, active }: { tabId: string; active: boolean }) 
                       title="Remove column"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setPaths((current) => current.filter((path) => path !== c));
+                        removePath(c);
                       }}
                     >
                       <Icon name="x" size={12} />
@@ -255,13 +339,14 @@ export function DocsView({ tabId, active }: { tabId: string; active: boolean }) 
             ))}
             {!hits.length && !search.isFetching && (
               <tr><td colSpan={columns.length + 1} style={{ color: "var(--text-3)" }}>
-                {conn ? (index ? "no documents" : "select an index above") : "no connection"}
+                {applied ? "no documents match this filter" : "no documents"}
               </td></tr>
             )}
           </tbody>
         </table>
       </div>
-      <div className="result-foot">
+      )}
+      {index && <div className="result-foot">
         <div className="seg">
           <ToolButton iconOnly disabled={page === 0} title="First page" aria-label="First page" onClick={() => setPage(0)}>
             <Icon name="chevrons-left" />
@@ -290,10 +375,10 @@ export function DocsView({ tabId, active }: { tabId: string; active: boolean }) 
             </span>
           )}
           <span>
-            {total === 0 ? 0 : page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} of {total} · size {PAGE_SIZE}
+            {total === 0 ? 0 : formatNumber(page * PAGE_SIZE + 1)}–{formatNumber(Math.min((page + 1) * PAGE_SIZE, total))} of {formatNumber(total)} · size {PAGE_SIZE}
           </span>
         </div>
-      </div>
+      </div>}
     </section>
   );
 }

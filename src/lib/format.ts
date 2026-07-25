@@ -55,6 +55,14 @@ export function formatDocCount(count: number): string {
   return String(count);
 }
 
+export function formatNumber(val: number | string | null | undefined, fallback = "—"): string {
+  if (val == null || val === "") return fallback;
+  const num = typeof val === "number" ? val : Number(val);
+  // pinned locale — the rest of the app formats en-US, a system-locale fallback would mix
+  // "1,234" and "1.234" on the same screen
+  return isNaN(num) ? String(val) : num.toLocaleString("en-US");
+}
+
 /** Coerce a form string into a typed JSON value (bool/number/string). */
 export function typedValue(raw: string): string | number | boolean {
   const value = raw.trim();
