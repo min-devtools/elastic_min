@@ -68,7 +68,7 @@ export function startResize(
     }
   };
   const stop = () => {
-    document.body.classList.remove("resizing", "resizing-y", "resizing-x");
+    document.body.classList.remove("resizing", "resizing-y");
     window.removeEventListener("pointermove", move);
     window.removeEventListener("pointerup", stop);
     window.removeEventListener("pointercancel", stop);
@@ -91,20 +91,28 @@ export function startResize(
   window.addEventListener("pointercancel", stop, { once: true });
 }
 
+/** collapsed height of the editor pane — matches `.query-view`'s `minmax(60px, …)` row */
+const QUERY_COLLAPSED = 60;
+/** anything at or under this reads as "already collapsed", so a double-click expands instead */
+const QUERY_COLLAPSED_MAX = 100;
+
 export function toggleQueryExpand() {
   const query = document.querySelector(".query-view.active");
   const topPane = query?.firstElementChild as HTMLElement | undefined;
   if (!topPane) return;
   const currentHeight = topPane.getBoundingClientRect().height;
-  if (currentHeight <= 100) {
+  const apply = (px: number) => {
+    document.body.style.setProperty("--query-top", `${px}px`);
+    // bare number — restoreLayoutSizes reads this with Number(), a "60px" string parses to NaN
+    localStorage.setItem("elasticmin:query-top", String(px));
+  };
+  if (currentHeight <= QUERY_COLLAPSED_MAX) {
     const last = Number(localStorage.getItem("elasticmin:last-query-top")) || 340;
-    const target = Math.max(240, last);
-    document.body.style.setProperty("--query-top", `${target}px`);
-    localStorage.setItem("elasticmin:query-top", String(target));
+    // restore what the user actually had, but never back into the collapsed band
+    apply(Math.max(QUERY_COLLAPSED_MAX + 20, last));
   } else {
     localStorage.setItem("elasticmin:last-query-top", String(Math.round(currentHeight)));
-    document.body.style.setProperty("--query-top", "60px");
-    localStorage.setItem("elasticmin:query-top", "60px");
+    apply(QUERY_COLLAPSED);
   }
 }
 

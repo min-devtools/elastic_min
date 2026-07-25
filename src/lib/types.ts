@@ -108,6 +108,8 @@ export interface SavedQuery {
 }
 
 export interface HistoryEntry {
+  /** stable row identity — `at` alone collides when two runs land in the same millisecond */
+  id: string;
   at: number;
   method: string;
   path: string;
