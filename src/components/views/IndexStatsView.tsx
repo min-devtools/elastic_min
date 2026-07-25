@@ -9,7 +9,7 @@ import { SortTh } from "../../ui/SortTh";
 import { useApp } from "../../store";
 import { useActiveConnection, useIndices } from "../../lib/queries";
 import { esJson } from "../../lib/es";
-import { formatBytes, formatDocCount } from "../../lib/format";
+import { formatBytes, formatDocCount, formatNumber } from "../../lib/format";
 import { sortRows, useSort } from "../../lib/useSort";
 
 interface ShardRow {
@@ -125,7 +125,7 @@ export function IndexStatsView({ active }: { active: boolean }) {
                   <td>
                     <span className={s.state === "STARTED" ? "risk-low" : "risk-high"}>{s.state}</span>
                   </td>
-                  <td>{s.docs ?? "—"}</td>
+                  <td>{formatNumber(s.docs)}</td>
                   <td>{s.store ?? "—"}</td>
                   <td>{s.node ?? "—"}</td>
                 </tr>
@@ -139,10 +139,10 @@ export function IndexStatsView({ active }: { active: boolean }) {
         <Panel title="Operations">
           <table>
             <tbody>
-              <tr><td>get</td><td>{formatDocCount(totals?.get?.total ?? 0)}</td><td>{totals?.get?.time_in_millis ?? 0}ms total</td></tr>
-              <tr><td>refresh</td><td>{formatDocCount(totals?.refresh?.total ?? 0)}</td><td>{totals?.refresh?.total_time_in_millis ?? 0}ms total</td></tr>
+              <tr><td>get</td><td>{formatDocCount(totals?.get?.total ?? 0)}</td><td>{formatNumber(totals?.get?.time_in_millis ?? 0)}ms total</td></tr>
+              <tr><td>refresh</td><td>{formatDocCount(totals?.refresh?.total ?? 0)}</td><td>{formatNumber(totals?.refresh?.total_time_in_millis ?? 0)}ms total</td></tr>
               <tr><td>merges</td><td>{formatDocCount(totals?.merges?.total ?? 0)}</td><td>{formatBytes(totals?.merges?.total_size_in_bytes ?? 0)} merged</td></tr>
-              <tr><td>segments</td><td>{totals?.segments?.count ?? 0}</td><td>{formatBytes(totals?.segments?.memory_in_bytes ?? 0)} memory</td></tr>
+              <tr><td>segments</td><td>{formatNumber(totals?.segments?.count ?? 0)}</td><td>{formatBytes(totals?.segments?.memory_in_bytes ?? 0)} memory</td></tr>
             </tbody>
           </table>
         </Panel>

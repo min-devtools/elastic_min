@@ -1,7 +1,7 @@
 import { Metric, Panel, BarLine } from "../../ui/MetricPanel";
 import { Kv } from "../../ui/Kv";
 import { useActiveConnection, useClusterHealth, useClusterInfo, useClusterStats, useIndices } from "../../lib/queries";
-import { formatDocCount } from "../../lib/format";
+import { formatDocCount, formatNumber } from "../../lib/format";
 import { useApp } from "../../store";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -33,8 +33,8 @@ export function ClusterView({ active }: { active: boolean }) {
             value={h ? h.status : "—"}
             color={h ? STATUS_COLORS[h.status] : undefined}
           />
-          <Metric label="Nodes" value={h?.number_of_nodes ?? "—"} />
-          <Metric label="Active shards" value={h?.active_shards ?? "—"} />
+          <Metric label="Nodes" value={formatNumber(h?.number_of_nodes)} />
+          <Metric label="Active shards" value={formatNumber(h?.active_shards)} />
           <Metric
             label="Heap pressure"
             value={heapPct != null ? `${heapPct}%` : "—"}

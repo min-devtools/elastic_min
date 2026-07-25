@@ -21,7 +21,7 @@ function indexFromPath(path: string): string {
 export function QueryView({ tabId, active }: { tabId: string; active: boolean }) {
   const conn = useActiveConnection();
   const vimMode = useApp((s) => s.vimMode);
-  const editorFontSize = useApp((s) => s.editorFontSize);
+  const uiFontSize = useApp((s) => s.uiFontSize);
   const editorFont = useApp((s) => s.editorFont);
   const qt = useApp((s) => s.queryTabs[tabId]);
   const updateQueryTab = useApp((s) => s.updateQueryTab);
@@ -177,8 +177,8 @@ export function QueryView({ tabId, active }: { tabId: string; active: boolean })
             onMount={onMount}
             options={{
               minimap: { enabled: false },
-              fontSize: editorFontSize,
-              lineHeight: Math.round(editorFontSize * 1.6),
+              fontSize: uiFontSize,
+              lineHeight: Math.round(uiFontSize * 1.6),
               fontFamily: editorFont
                 ? `"${editorFont}", ui-monospace, Menlo, monospace`
                 : '"Google Sans Code", "Berkeley Mono", ui-monospace, Menlo, Consolas, monospace',

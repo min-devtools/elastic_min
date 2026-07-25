@@ -1,9 +1,11 @@
+import { motion, AnimatePresence } from "motion/react";
 import { ToolButton } from "../../ui/ToolButton";
 import { Badge } from "../../ui/Badge";
 import { Icon } from "../../ui/Icon";
 import { useApp } from "../../store";
 import type { SavedQuery } from "../../lib/types";
 import { pressable } from "../../ui/pressable";
+import { formatNumber } from "../../lib/format";
 
 function timeOf(at: number): string {
   const d = new Date(at);
@@ -28,7 +30,7 @@ export function SavedQueriesView({ active }: { active: boolean }) {
       <div className="index-searchbar">
         <div className="seg">
           <strong>Saved Queries</strong>
-          <Badge>{savedQueries.length} saved</Badge>
+          <Badge>{formatNumber(savedQueries.length)} saved</Badge>
         </div>
         <span />
         <span style={{ color: "var(--text-3)" }}>
@@ -47,8 +49,17 @@ export function SavedQueriesView({ active }: { active: boolean }) {
             </tr>
           </thead>
           <tbody>
-            {savedQueries.map((q) => (
-              <tr key={q.id} onClick={() => reopen(q)} {...pressable(() => void reopen(q))}>
+            <AnimatePresence initial={false}>
+              {savedQueries.map((q) => (
+                <motion.tr
+                  key={q.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.14 }}
+                  onClick={() => reopen(q)}
+                  {...pressable(() => void reopen(q))}
+                >
                 <td><span className="cell-id">{q.name}</span></td>
                 <td><span className="type-pill">{q.method}</span></td>
                 <td><span className="cell-id">{q.path}</span></td>
@@ -89,8 +100,9 @@ export function SavedQueriesView({ active }: { active: boolean }) {
                     <Icon name="trash" />
                   </ToolButton>
                 </td>
-              </tr>
-            ))}
+                </motion.tr>
+              ))}
+            </AnimatePresence>
             {!savedQueries.length && (
               <tr><td colSpan={5} style={{ color: "var(--text-3)" }}>no saved queries yet — press ⌘S in a query tab</td></tr>
             )}

@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
+import { motion, AnimatePresence } from "motion/react";
 import { ToolButton } from "../../ui/ToolButton";
 import { Badge } from "../../ui/Badge";
 import { StatusDot } from "../../ui/StatusDot";
 import { JsonView } from "../../ui/JsonView";
+import { SectionVeil } from "../../ui/SectionVeil";
 import { Icon } from "../../ui/Icon";
 import { Combobox } from "../../ui/Combobox";
 import { useApp } from "../../store";
 import { useActiveConnection, useIndices, useMappingFields } from "../../lib/queries";
-import { formatValue, typedValue, valueClass } from "../../lib/format";
+import { formatNumber, formatValue, typedValue, valueClass } from "../../lib/format";
 import { esRequest } from "../../lib/es";
 import type { EsHit } from "../../lib/types";
 
@@ -227,44 +229,54 @@ export function QuickQueryView({ active }: { active: boolean }) {
             </div>
           </div>
 
-          {conditions.map((c, i) => (
-            <div className="condition-card" key={c.id}>
-              <div className="condition-head">
-                <span>{i === 0 ? "WHERE" : logic.toUpperCase()}</span>
-                <button
-                  type="button"
-                className="condition-remove"
-                title="Remove condition"
-                aria-label="Remove condition"
-                  onClick={() => setConditions((cs) => cs.filter((x) => x.id !== c.id))}
-                >
-                  <Icon name="x" size={14} />
-                </button>
-              </div>
-              <Combobox
-                value={c.field}
-                placeholder="Search field path…"
-                options={fields.map((f) => ({ value: f.path, hint: f.type }))}
-                onChange={(path) => setConditionField(c.id, path)}
-              />
-              <div className="condition-row">
-                <select
-                  value={c.operator}
-                  onChange={(e) => patchCondition(c.id, { operator: e.target.value as Operator })}
-                >
-                  {OPERATORS.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-                <input
-                  value={c.value}
-                  disabled={c.operator === "exists"}
-                  placeholder="value, e.g. paid, now-7d, 100"
-                  onChange={(e) => patchCondition(c.id, { value: e.target.value })}
+          <AnimatePresence initial={false}>
+            {conditions.map((c, i) => (
+              <motion.div
+                className="condition-card"
+                key={c.id}
+                layout
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ type: "spring", stiffness: 450, damping: 32 }}
+              >
+                <div className="condition-head">
+                  <span>{i === 0 ? "WHERE" : logic.toUpperCase()}</span>
+                  <button
+                    type="button"
+                  className="condition-remove"
+                  title="Remove condition"
+                  aria-label="Remove condition"
+                    onClick={() => setConditions((cs) => cs.filter((x) => x.id !== c.id))}
+                  >
+                    <Icon name="x" size={14} />
+                  </button>
+                </div>
+                <Combobox
+                  value={c.field}
+                  placeholder="Search field path…"
+                  options={fields.map((f) => ({ value: f.path, hint: f.type }))}
+                  onChange={(path) => setConditionField(c.id, path)}
                 />
-              </div>
-            </div>
-          ))}
+                <div className="condition-row">
+                  <select
+                    value={c.operator}
+                    onChange={(e) => patchCondition(c.id, { operator: e.target.value as Operator })}
+                  >
+                    {OPERATORS.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                  <input
+                    value={c.value}
+                    disabled={c.operator === "exists"}
+                    placeholder="value, e.g. paid, now-7d, 100"
+                    onChange={(e) => patchCondition(c.id, { value: e.target.value })}
+                  />
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
 
           <div className="seg">
             <ToolButton
@@ -303,45 +315,55 @@ export function QuickQueryView({ active }: { active: boolean }) {
             </div>
           </div>
           <JsonView className="quick-query-code json-tree" value={generated} />
-          {preview && (
-            <div className="quick-preview-results">
-              <div className="quick-preview-results-head">
-                <strong>{preview.error ? "Preview failed" : `${(preview.total ?? preview.hits.length).toLocaleString("en-US")} hits`}</strong>
-                {!preview.error && <span>sample of {preview.hits.length}</span>}
-                <span>{preview.timeMs} ms</span>
-              </div>
-              {preview.error ? (
-                <div className="err-note">{preview.error}</div>
-              ) : (
-                <table>
-                  <thead>
-                    <tr>
-                      <th>_id</th>
-                      {previewColumns.map((c) => <th key={c}>{c}</th>)}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {preview.hits.map((h) => (
-                      <tr key={`${h._index}/${h._id}`}>
-                        <td><span className="cell-id">{h._id}</span></td>
-                        {previewColumns.map((c) => {
-                          const v = (h._source ?? {})[c];
-                          return (
-                            <td key={c}>
-                              <span className={`path-value ${valueClass(c, v)}`}>{formatValue(v)}</span>
-                            </td>
-                          );
-                        })}
+          <SectionVeil on={previewRunning} label="Running preview…" />
+          <AnimatePresence>
+            {preview && (
+              <motion.div
+                key="quick-preview-results"
+                className="quick-preview-results"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.16, ease: [0.32, 0.72, 0, 1] }}
+              >
+                <div className="quick-preview-results-head">
+                  <strong>{preview.error ? "Preview failed" : `${formatNumber(preview.total ?? preview.hits.length)} hits`}</strong>
+                  {!preview.error && <span>sample of {formatNumber(preview.hits.length)}</span>}
+                  <span className="result-time-pill">{preview.timeMs}ms</span>
+                </div>
+                {preview.error ? (
+                  <div className="err-note">{preview.error}</div>
+                ) : (
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>_id</th>
+                        {previewColumns.map((c) => <th key={c}>{c}</th>)}
                       </tr>
-                    ))}
-                    {!preview.hits.length && (
-                      <tr><td style={{ color: "var(--text-3)" }}>no documents matched</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          )}
+                    </thead>
+                    <tbody>
+                      {preview.hits.map((h) => (
+                        <tr key={`${h._index}/${h._id}`}>
+                          <td><span className="cell-id">{h._id}</span></td>
+                          {previewColumns.map((c) => {
+                            const v = (h._source ?? {})[c];
+                            return (
+                              <td key={c}>
+                                <span className={`path-value ${valueClass(c, v)}`}>{formatValue(v)}</span>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                      {!preview.hits.length && (
+                        <tr><td style={{ color: "var(--text-3)" }}>no documents matched</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </section>

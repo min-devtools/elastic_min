@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { AnimatePresence } from "motion/react";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { esJson } from "../../lib/es";
 import { ToolButton } from "../../ui/ToolButton";
@@ -11,7 +12,7 @@ import { SectionVeil } from "../../ui/SectionVeil";
 import { SortTh } from "../../ui/SortTh";
 import { useApp } from "../../store";
 import { useActiveConnection, useIndices } from "../../lib/queries";
-import { formatDocCount } from "../../lib/format";
+import { formatDocCount, formatNumber } from "../../lib/format";
 import { sortRows, useSort } from "../../lib/useSort";
 import { pressable } from "../../ui/pressable";
 
@@ -120,7 +121,7 @@ export function IndexesView({ active }: { active: boolean }) {
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
         />
-        <Badge>{indices.data ? `${filtered.length} shown` : conn ? "loading…" : "no connection"}</Badge>
+        <Badge>{indices.data ? `${formatNumber(filtered.length)} shown` : conn ? "loading…" : "no connection"}</Badge>
         <span style={{ color: "var(--text-3)" }}>
           Click a row to browse documents · right-click for actions.
         </span>
@@ -186,7 +187,9 @@ export function IndexesView({ active }: { active: boolean }) {
           </tbody>
         </table>
       </div>
-      {menu && <ContextMenu x={menu.x} y={menu.y} items={menuItems} onClose={() => setMenu(null)} />}
+      <AnimatePresence>
+        {menu && <ContextMenu x={menu.x} y={menu.y} items={menuItems} onClose={() => setMenu(null)} />}
+      </AnimatePresence>
     </section>
   );
 }
