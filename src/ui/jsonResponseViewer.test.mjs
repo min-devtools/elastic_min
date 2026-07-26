@@ -28,10 +28,12 @@ test("results panel shows JSON via the response viewer", async () => {
   assert.match(panel, /<JsonResponseViewer value=\{rawJson\}/);
 });
 
-test("results panel no longer has the NDJSON copy button", async () => {
+test("results panel no longer has the NDJSON copy-to-clipboard button", async () => {
   const panel = await read("components/views/ResultsPanel.tsx");
-  assert.doesNotMatch(panel, /NDJSON/);
+  // NDJSON leaves the app via file export only (hitsToNdjson → save_export),
+  // never via the old clipboard copy button
   assert.doesNotMatch(panel, /copyNdjson/);
+  assert.doesNotMatch(panel, /writeText\([^)]*[Nn]djson/);
 });
 
 test("results panel auto switches to JSON view when aggregations are present", async () => {

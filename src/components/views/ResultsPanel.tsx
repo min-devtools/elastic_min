@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { motion, AnimatePresence } from "motion/react";
 import { ToolButton } from "../../ui/ToolButton";
 import { Badge } from "../../ui/Badge";
@@ -8,6 +10,7 @@ import { SectionVeil } from "../../ui/SectionVeil";
 import { Icon } from "../../ui/Icon";
 import { SortTh } from "../../ui/SortTh";
 import { ColumnControls } from "../../ui/ColumnControls";
+import { ContextMenu } from "../../ui/ContextMenu";
 import { selectDocWithConfirm, useApp } from "../../store";
 import { useActiveConnection } from "../../lib/queries";
 import { esJson } from "../../lib/es";
@@ -16,6 +19,9 @@ import { formatNumber, formatValue, getPath, valueClass } from "../../lib/format
 import { runQueryTab } from "../../lib/runQuery";
 import { sortRows, useSort } from "../../lib/useSort";
 import { reorder, reorderVisible, syncColumnOrder } from "../../lib/columnOrder";
+import { exportFilename, hitsToCsv, hitsToNdjson } from "../../lib/exportHits";
+import { scrollAllHits } from "../../lib/exportAll";
+import type { EsHit } from "../../lib/types";
 
 export function ResultsPanel({ tabId }: { tabId: string }) {
   const conn = useActiveConnection();
@@ -36,6 +42,8 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [exportMenu, setExportMenu] = useState<{ x: number; y: number } | null>(null);
+  const [exporting, setExporting] = useState<string | null>(null);
   const { sort, cycleSort: rawCycleSort } = useSort();
 
   const result = qt?.result ?? null;
@@ -257,6 +265,55 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
     }
   };
 
+  /** Write the export into Downloads via the Rust side, then reveal it. */
+  const saveExport = async (label: string, filename: string, contents: string) => {
+    const path = await invoke<string>("save_export", { filename, contents });
+    showToast(label, `Saved to ${path}`);
+    void revealItemInDir(path).catch(() => undefined);
+  };
+
+  const exportLoaded = async (kind: "csv" | "ndjson") => {
+    const rows = sortedHits ?? [];
+    if (!rows.length) return;
+    try {
+      await saveExport(
+        `Exported ${formatNumber(rows.length)} hits`,
+        exportFilename("hits", kind, new Date()),
+        kind === "csv" ? hitsToCsv(rows, columns) : hitsToNdjson(rows),
+      );
+    } catch (err) {
+      showToast("Export failed", String(err), "err");
+    }
+  };
+
+  const exportAll = async (kind: "csv" | "ndjson") => {
+    if (!conn || !qt || exporting) return;
+    setExporting("starting…");
+    try {
+      const { hits: allHits, total, truncated } = await scrollAllHits(
+        conn,
+        qt.path,
+        qt.body,
+        (p) => setExporting(`${formatNumber(p.fetched)}${p.total != null ? ` / ${formatNumber(p.total)}` : ""} docs`),
+      );
+      if (!allHits.length) {
+        showToast("Nothing to export", "The query matched no documents.", "warn");
+        return;
+      }
+      await saveExport(
+        truncated
+          ? `Exported first ${formatNumber(allHits.length)} of ${formatNumber(total ?? 0)} hits`
+          : `Exported all ${formatNumber(allHits.length)} hits`,
+        exportFilename("hits-all", kind, new Date()),
+        kind === "csv" ? hitsToCsv(allHits as EsHit[], columns) : hitsToNdjson(allHits as EsHit[]),
+      );
+    } catch (err) {
+      showToast("Export failed", String(err), "err");
+    } finally {
+      setExporting(null);
+    }
+  };
+
   const renderMeta = () => {
     if (!result) {
       return <span className="result-meta muted">run the query to load results</span>;
@@ -335,6 +392,16 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
                 </motion.span>
               )}
             </AnimatePresence>
+            <ToolButton
+              title="Export results as CSV/NDJSON into Downloads"
+              disabled={!hits || !!exporting}
+              onClick={(e) => {
+                const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                setExportMenu({ x: r.left, y: r.bottom + 4 });
+              }}
+            >
+              <Icon name="download" /> {exporting ? `Exporting ${exporting}` : "Export"}
+            </ToolButton>
             <ToolButton
               title={normalized ? "Switch to raw top-level columns" : "Switch to JSON-path columns"}
               className={normalized && enabledPaths.size > 0 ? "active" : ""}
@@ -507,6 +574,33 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
           <div className="empty-note">Press Run (⌘↵) to execute this request against the cluster.</div>
         )}
       </div>
+      <AnimatePresence>
+        {exportMenu && (
+          <ContextMenu
+            x={exportMenu.x}
+            y={exportMenu.y}
+            onClose={() => setExportMenu(null)}
+            items={[
+              {
+                icon: "table", label: `CSV — loaded hits (${formatNumber(sortedHits?.length ?? 0)})`, strong: true,
+                onClick: () => void exportLoaded("csv"),
+              },
+              {
+                icon: "braces", label: `NDJSON — loaded hits (${formatNumber(sortedHits?.length ?? 0)})`,
+                onClick: () => void exportLoaded("ndjson"),
+              },
+              {
+                icon: "table", label: "CSV — all results (scroll)",
+                onClick: () => void exportAll("csv"),
+              },
+              {
+                icon: "braces", label: "NDJSON — all results (scroll)",
+                onClick: () => void exportAll("ndjson"),
+              },
+            ]}
+          />
+        )}
+      </AnimatePresence>
       {view === "table" && <div className="result-foot">
         <div className="seg">
           <ToolButton iconOnly disabled={safePage === 1} title="First page" aria-label="First page" onClick={() => setPage(1)}><Icon name="chevrons-left" /></ToolButton>

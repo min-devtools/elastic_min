@@ -32,6 +32,11 @@ const TAB_META: Record<TabKind, { title: string; icon: TabDef["icon"]; iconClass
   indexes: { title: "All Indexes", icon: "indexes", iconClass: "soft-orange" },
   "create-index": { title: "Create Index", icon: "folder-plus", iconClass: "soft-green" },
   cluster: { title: "Cluster", icon: "cluster", iconClass: "soft-green" },
+  nodes: { title: "Nodes", icon: "server", iconClass: "soft-green" },
+  shards: { title: "Shards", icon: "shards", iconClass: "soft-orange" },
+  overview: { title: "All Clusters", icon: "globe", iconClass: "soft-blue" },
+  reindex: { title: "Reindex", icon: "reindex", iconClass: "soft-green" },
+  templates: { title: "Templates & ILM", icon: "template", iconClass: "soft-blue" },
   mapping: { title: "Mapping", icon: "mapping", iconClass: "soft-blue" },
   settings: { title: "Settings", icon: "settings", iconClass: "soft-orange" },
   history: { title: "Query History", icon: "history", iconClass: "soft-orange" },
@@ -52,6 +57,8 @@ const GLOBAL_KINDS: ReadonlySet<TabKind> = new Set<TabKind>([
   "settings",
   "history",
   "saved-queries",
+  // one dashboard over every saved connection — by definition not bound to any one of them
+  "overview",
 ]);
 
 /** the tab a connection opens into when you pick it in the sidebar and nothing of its is open yet */
