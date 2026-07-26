@@ -46,6 +46,20 @@ export function IndexesView({ active }: { active: boolean }) {
     }
   });
 
+  /** Fire a maintenance call, toast the outcome, refresh the index list. */
+  const runOp = async (label: string, method: string, path: string, body?: string) => {
+    if (!conn) return;
+    try {
+      await esJson(conn, method, path, body);
+      showToast(label, `${method} ${path} succeeded.`);
+      void queryClient.invalidateQueries({ queryKey: ["indices"] });
+    } catch (err) {
+      showToast(`${label} failed`, String(err), "err");
+    }
+  };
+
+  const menuRow = menu ? (indices.data ?? []).find((i) => i.index === menu.index) : null;
+
   const menuItems: ContextMenuItem[] = menu
     ? [
         {
@@ -83,6 +97,102 @@ export function IndexesView({ active }: { active: boolean }) {
             showToast("Copied", `${menu.index} copied to clipboard.`);
           },
         },
+        {
+          icon: "refresh", label: "Refresh index",
+          onClick: () => void runOp("Index refreshed", "POST", `/${encodeURIComponent(menu.index)}/_refresh`),
+        },
+        {
+          icon: "zap", label: "Flush index",
+          onClick: () => void runOp("Index flushed", "POST", `/${encodeURIComponent(menu.index)}/_flush`),
+        },
+        {
+          icon: "minify", label: "Force merge…",
+          onClick: async () => {
+            const ok = await openDialog({
+              kind: "confirm",
+              title: "Force merge?",
+              message: `Merge "${menu.index}" down to 1 segment. I/O heavy — best on indexes that no longer receive writes.`,
+              confirmLabel: "Force merge",
+            });
+            if (ok === null) return;
+            void runOp("Force merge finished", "POST", `/${encodeURIComponent(menu.index)}/_forcemerge?max_num_segments=1`);
+          },
+        },
+        menuRow?.status === "close"
+          ? {
+              icon: "play", label: "Open index",
+              onClick: () => void runOp("Index opened", "POST", `/${encodeURIComponent(menu.index)}/_open`),
+            }
+          : {
+              icon: "x", label: "Close index…",
+              onClick: async () => {
+                const ok = await openDialog({
+                  kind: "confirm",
+                  title: "Close index?",
+                  message: `"${menu.index}" will reject reads and writes until reopened.`,
+                  confirmLabel: "Close index",
+                  danger: true,
+                });
+                if (ok === null) return;
+                void runOp("Index closed", "POST", `/${encodeURIComponent(menu.index)}/_close`);
+              },
+            },
+        {
+          icon: "plus", label: "Add alias…",
+          onClick: async () => {
+            const alias = await openDialog({
+              kind: "prompt",
+              title: "Add alias",
+              message: `New alias for "${menu.index}":`,
+              confirmLabel: "Add",
+            });
+            if (!alias?.trim()) return;
+            void runOp(
+              "Alias added",
+              "POST",
+              "/_aliases",
+              JSON.stringify({ actions: [{ add: { index: menu.index, alias: alias.trim() } }] }),
+            );
+          },
+        },
+        ...(menuRow?.aliases.length
+          ? [
+              {
+                icon: "trash", label: "Remove alias…",
+                onClick: async () => {
+                  const alias = await openDialog({
+                    kind: "prompt",
+                    title: "Remove alias",
+                    message: `Aliases on "${menu.index}": ${menuRow.aliases.join(", ")}\nAlias to remove:`,
+                    defaultValue: menuRow.aliases[0],
+                    confirmLabel: "Remove",
+                    danger: true,
+                  });
+                  if (!alias?.trim()) return;
+                  void runOp(
+                    "Alias removed",
+                    "POST",
+                    "/_aliases",
+                    JSON.stringify({ actions: [{ remove: { index: menu.index, alias: alias.trim() } }] }),
+                  );
+                },
+              } satisfies ContextMenuItem,
+              {
+                icon: "reindex", label: "Rollover alias…",
+                onClick: async () => {
+                  const alias = await openDialog({
+                    kind: "prompt",
+                    title: "Rollover",
+                    message: "Rollover creates a fresh index behind the alias and repoints writes to it.\nAlias to roll over:",
+                    defaultValue: menuRow.aliases[0],
+                    confirmLabel: "Rollover",
+                  });
+                  if (!alias?.trim()) return;
+                  void runOp("Rollover done", "POST", `/${encodeURIComponent(alias.trim())}/_rollover`);
+                },
+              } satisfies ContextMenuItem,
+            ]
+          : []),
         {
           icon: "trash", label: "Delete index…",
           onClick: async () => {

@@ -1202,3 +1202,120 @@ th.drag-over { box-shadow: inset 2px 0 0 var(--blue); }
 }
 
 .th-remove:hover { color: var(--red); background: var(--pane-3); }
+
+/* motion (JS) owns the palette open/close in this app — the design-system CSS
+   keyframes would run on top of it and fight the spring (visible end-hitch) */
+.command, .palette, .toast, .prompt-dialog { animation: none; }
+
+/* mini-tabs: the active background is a motion pill that glides between tabs,
+   so the static active styles from the design system go transparent here */
+.mini-tabs button { position: relative; }
+.mini-tabs button.active { background: transparent; border-color: transparent; }
+.mini-tabs button > svg,
+.mini-tabs .mini-tab-label { position: relative; z-index: 1; }
+.mini-tab-pill {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: 7px;
+  background: var(--pane-2);
+  border: 1px solid var(--line);
+}
+
+/* ---- sparklines (Cluster view live metrics) ---- */
+.spark-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.spark-cell { display: grid; gap: 6px; min-width: 0; }
+.spark-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  color: var(--text-3);
+  font: 0.9231rem/1 var(--font-mono);
+}
+.spark { width: 100%; height: 36px; display: block; }
+.spark-empty {
+  height: 36px;
+  display: grid;
+  place-items: center;
+  color: var(--text-3);
+  font: 0.9231rem/1 var(--font-mono);
+  border: 1px dashed var(--line-2);
+  border-radius: 8px;
+}
+
+/* ---- All Clusters overview ---- */
+.overview-view { grid-template-columns: 1fr; min-height: 0; }
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
+}
+.overview-card {
+  border: 1px solid var(--line-2);
+  border-radius: 14px;
+  background: color-mix(in oklab, var(--pane), transparent 4%);
+  padding: 14px;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
+}
+.overview-card:hover {
+  border-color: color-mix(in oklab, var(--blue), transparent 45%);
+  background: var(--pane-2);
+  transform: translateY(-1px);
+}
+.overview-card.yellow { border-color: color-mix(in oklab, var(--orange), transparent 50%); }
+.overview-card.red { border-color: color-mix(in oklab, var(--red), transparent 45%); }
+.overview-head { display: flex; align-items: center; gap: 8px; }
+.overview-head strong {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.overview-endpoint {
+  margin: 6px 0 10px;
+  color: var(--text-3);
+  font: 0.9231rem/1.3 var(--font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.overview-error {
+  color: var(--red);
+  font: 0.9231rem/1.45 var(--font-mono);
+  overflow-wrap: anywhere;
+}
+.overview-cells { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 10px; }
+.overview-cell { display: grid; gap: 3px; min-width: 0; }
+.overview-cell span {
+  color: var(--text-3);
+  font: 0.8462rem/1 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.overview-cell strong {
+  font: 1rem/1.2 var(--font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- Templates & ILM ---- */
+.templates-view { grid-template-rows: auto minmax(0, 1fr); min-height: 0; }
+.templates-view .doc-head { min-height: 46px; }
+.templates-layout { display: grid; grid-template-columns: 320px minmax(0, 1fr); min-height: 0; }
+.templates-list {
+  position: relative;
+  border-right: 1px solid var(--line);
+  overflow: auto;
+  padding: 10px;
+}
+.templates-list .nav-item > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.templates-editor { display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: 0; }
+.templates-editor-host { min-height: 0; overflow: hidden; background: var(--editor-bg); }
+.templates-ilm { display: grid; grid-template-columns: minmax(0, 1fr) 340px; min-height: 0; }

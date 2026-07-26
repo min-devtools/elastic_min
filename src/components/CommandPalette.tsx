@@ -77,6 +77,11 @@ export function CommandPalette() {
       { icon: "indexes", label: "Open All Indexes", action: () => app.openTab("indexes") },
       { icon: "folder-plus", label: "Create index", action: () => app.openTab("create-index") },
       { icon: "cluster", label: "Show cluster health", action: () => app.openTab("cluster") },
+      { icon: "server", label: "Show nodes", action: () => app.openTab("nodes") },
+      { icon: "shards", label: "Show shard allocation", action: () => app.openTab("shards") },
+      { icon: "globe", label: "All clusters overview", action: () => app.openTab("overview") },
+      { icon: "template", label: "Open Templates & ILM", action: () => app.openTab("templates") },
+      { icon: "reindex", label: "Open Reindex helper", action: () => app.openTab("reindex") },
       { icon: "mapping", label: "Open Mapping viewer", action: () => app.openTab("mapping") },
       { icon: "settings", label: "Open Settings", kbd: "⌘,", action: () => app.openTab("settings") },
       { icon: "history", label: "Open Query History", action: () => app.openTab("history") },
@@ -226,19 +231,39 @@ export function CommandPalette() {
         </motion.div>
       )}
     </AnimatePresence>
-    {themePicker && (
-      <div className="modal" onMouseDown={(e) => { if (e.target === e.currentTarget) setThemePicker(false); }}>
-        <div className="prompt-dialog" role="dialog" aria-modal="true" aria-label="Theme picker">
-          <strong>Theme picker</strong>
-          <p className="prompt-dialog-msg">Changes apply immediately and are saved for this device.</p>
-          <select className="side-search" style={{ width: "100%" }} value={theme} autoFocus onChange={(event) => setTheme(event.target.value)}>
-            <optgroup label="Dark">{THEMES.filter((item) => item.base === "dark").map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</optgroup>
-            <optgroup label="Light">{THEMES.filter((item) => item.base === "light").map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</optgroup>
-          </select>
-          <div className="prompt-dialog-foot"><ToolButton variant="primary" onClick={() => setThemePicker(false)}>Done</ToolButton></div>
-        </div>
-      </div>
-    )}
+    <AnimatePresence>
+      {themePicker && (
+        <motion.div
+          key="theme-picker-backdrop"
+          className="modal"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }}
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setThemePicker(false); }}
+        >
+          <motion.div
+            key="theme-picker-content"
+            className="prompt-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Theme picker"
+            initial={{ opacity: 0, scale: 0.95, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 8 }}
+            transition={{ type: "spring", stiffness: 420, damping: 30 }}
+          >
+            <strong>Theme picker</strong>
+            <p className="prompt-dialog-msg">Changes apply immediately and are saved for this device.</p>
+            <select className="side-search" style={{ width: "100%" }} value={theme} autoFocus onChange={(event) => setTheme(event.target.value)}>
+              <optgroup label="Dark">{THEMES.filter((item) => item.base === "dark").map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</optgroup>
+              <optgroup label="Light">{THEMES.filter((item) => item.base === "light").map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</optgroup>
+            </select>
+            <div className="prompt-dialog-foot"><ToolButton variant="primary" onClick={() => setThemePicker(false)}>Done</ToolButton></div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
     </>
   );
 }

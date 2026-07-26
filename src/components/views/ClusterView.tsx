@@ -1,8 +1,41 @@
 import { Metric, Panel, BarLine } from "../../ui/MetricPanel";
 import { Kv } from "../../ui/Kv";
-import { useActiveConnection, useClusterHealth, useClusterInfo, useClusterStats, useIndices } from "../../lib/queries";
+import { Sparkline } from "../../ui/Sparkline";
+import {
+  useActiveConnection,
+  useClusterHealth,
+  useClusterInfo,
+  useClusterStats,
+  useIndices,
+  useNodeMetricSamples,
+} from "../../lib/queries";
+import { gaugeSeries, ratesPerSec } from "../../lib/metricsHistory";
 import { formatDocCount, formatNumber } from "../../lib/format";
 import { useApp } from "../../store";
+
+function SparkCell({
+  label,
+  values,
+  latest,
+  color,
+  max,
+}: {
+  label: string;
+  values: number[];
+  latest: string;
+  color: string;
+  max?: number;
+}) {
+  return (
+    <div className="spark-cell">
+      <div className="spark-head">
+        <span>{label}</span>
+        <strong style={{ color }}>{latest}</strong>
+      </div>
+      <Sparkline values={values} color={color} max={max} />
+    </div>
+  );
+}
 
 const STATUS_COLORS: Record<string, string> = {
   green: "var(--green)",
@@ -16,6 +49,14 @@ export function ClusterView({ active }: { active: boolean }) {
   const info = useClusterInfo();
   const stats = useClusterStats();
   const indices = useIndices();
+  const samples = useNodeMetricSamples();
+
+  const heapSeries = gaugeSeries(samples, "heapPct");
+  const cpuSeries = gaugeSeries(samples, "cpuPct");
+  const indexRates = ratesPerSec(samples, "indexTotal");
+  const searchRates = ratesPerSec(samples, "searchTotal");
+  const fmtRate = (rates: number[]) =>
+    rates.length ? `${formatNumber(Math.round(rates[rates.length - 1]))}/s` : "—";
 
   const h = health.data;
   const heapUsed = stats.data?.nodes?.jvm?.mem?.heap_used_in_bytes ?? 0;
@@ -41,6 +82,36 @@ export function ClusterView({ active }: { active: boolean }) {
             color={heapPct != null && heapPct > 75 ? "var(--red)" : heapPct != null && heapPct > 55 ? "var(--orange)" : undefined}
           />
         </div>
+        <Panel title="Live metrics · 10s samples, 15m window">
+          <div className="spark-grid">
+            <SparkCell
+              label="Heap"
+              values={heapSeries}
+              latest={heapSeries.length ? `${heapSeries[heapSeries.length - 1]}%` : "—"}
+              color="var(--blue)"
+              max={100}
+            />
+            <SparkCell
+              label="CPU"
+              values={cpuSeries}
+              latest={cpuSeries.length ? `${cpuSeries[cpuSeries.length - 1]}%` : "—"}
+              color="var(--orange)"
+              max={100}
+            />
+            <SparkCell
+              label="Indexing"
+              values={indexRates}
+              latest={fmtRate(indexRates)}
+              color="var(--green)"
+            />
+            <SparkCell
+              label="Search"
+              values={searchRates}
+              latest={fmtRate(searchRates)}
+              color="var(--accent, var(--blue))"
+            />
+          </div>
+        </Panel>
         <Panel title="Shards">
           <BarLine
             label="active"

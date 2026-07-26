@@ -154,9 +154,14 @@ async fn ai_chat(
         .ok_or_else(|| "provider returned no message content".into())
 }
 
-/// List installed font family names (macOS: NSFontManager via JXA — no extra crates).
-#[tauri::command]
-async fn list_fonts() -> Result<Vec<String>, String> {
+/// CREATE_NO_WINDOW — a GUI process spawning a console child flashes a black
+/// console window without it.
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+/// Installed font family names, sorted (macOS: NSFontManager via JXA — no extra crates).
+#[cfg(target_os = "macos")]
+fn installed_fonts() -> Result<Vec<String>, String> {
     let out = std::process::Command::new("osascript")
         .args([
             "-l",
@@ -170,11 +175,92 @@ async fn list_fonts() -> Result<Vec<String>, String> {
         return Err(String::from_utf8_lossy(&out.stderr).into_owned());
     }
     let json = String::from_utf8_lossy(&out.stdout);
-    let mut fonts: Vec<String> =
-        serde_json::from_str(json.trim()).map_err(|e| e.to_string())?;
+    let mut fonts: Vec<String> = serde_json::from_str(json.trim()).map_err(|e| e.to_string())?;
     fonts.retain(|f| !f.starts_with('.')); // hidden system families
     fonts.sort();
     Ok(fonts)
+}
+
+/// Windows PowerShell (not pwsh — System.Drawing is not guaranteed on .NET
+/// Core) enumerates installed families, one name per line.
+#[cfg(target_os = "windows")]
+fn installed_fonts() -> Result<Vec<String>, String> {
+    use std::os::windows::process::CommandExt;
+    let out = std::process::Command::new("powershell.exe")
+        .args([
+            "-NoLogo",
+            "-NoProfile",
+            "-Command",
+            // stdout defaults to the console codepage, which replaces CJK/Cyrillic
+            // family names with a literal '?' before Rust ever sees the bytes
+            "[Console]::OutputEncoding = [Text.Encoding]::UTF8; \
+             Add-Type -AssemblyName System.Drawing; \
+             (New-Object System.Drawing.Text.InstalledFontCollection).Families \
+             | ForEach-Object { $_.Name }",
+        ])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()
+        .map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).trim().to_owned());
+    }
+    let mut fonts: Vec<String> = String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .map(|l| l.trim().to_owned())
+        .filter(|l| !l.is_empty())
+        .collect();
+    fonts.sort();
+    // a family installed for several scripts is listed once per registration
+    fonts.dedup();
+    Ok(fonts)
+}
+
+/// Nothing to enumerate without a platform API — the picker falls back to the
+/// families the webview already knows.
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+fn installed_fonts() -> Result<Vec<String>, String> {
+    Ok(Vec::new())
+}
+
+#[tauri::command]
+async fn list_fonts() -> Result<Vec<String>, String> {
+    installed_fonts()
+}
+
+/// Write an export (CSV/NDJSON) into the user's Downloads folder and return the
+/// final path. Never overwrites: an existing name gets " (1)", " (2)", …
+#[tauri::command]
+async fn save_export(
+    app: tauri::AppHandle,
+    filename: String,
+    contents: String,
+) -> Result<String, String> {
+    use tauri::Manager;
+    // the name is app-generated, but a connection/index name could smuggle separators
+    let safe: String = filename
+        .chars()
+        .map(|c| match c {
+            '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|' => '_',
+            _ => c,
+        })
+        .collect();
+    let dir = app
+        .path()
+        .download_dir()
+        .or_else(|_| app.path().home_dir())
+        .map_err(|e| e.to_string())?;
+    let (stem, ext) = match safe.rsplit_once('.') {
+        Some((stem, ext)) => (stem.to_owned(), format!(".{ext}")),
+        None => (safe.clone(), String::new()),
+    };
+    let mut path = dir.join(&safe);
+    let mut n = 1u32;
+    while path.exists() {
+        path = dir.join(format!("{stem} ({n}){ext}"));
+        n += 1;
+    }
+    std::fs::write(&path, contents).map_err(|e| e.to_string())?;
+    Ok(path.to_string_lossy().into_owned())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -183,9 +269,13 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_clipboard_manager::init())
-.plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![es_request, list_fonts, ai_chat])
+        .plugin(tauri_plugin_opener::init())
+        .invoke_handler(tauri::generate_handler![es_request, list_fonts, ai_chat, save_export])
         .setup(|app| {
+            // the menu below is the only thing that wants the handle
+            #[cfg(not(target_os = "macos"))]
+            let _ = app;
+
             // Custom menu without File > Close Window so ⌘W reaches the webview
             // (used to close the active workspace tab). Edit menu kept for copy/paste.
             #[cfg(target_os = "macos")]
@@ -237,4 +327,26 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn installed_fonts_enumerates_clean_sorted_families() {
+        // a wrong assembly name or a bad shell flag still type-checks and still
+        // exits 0 on some hosts — only running the lookup shows the empty list
+        let fonts = installed_fonts().expect("the platform font lookup must succeed");
+        #[cfg(any(target_os = "macos", target_os = "windows"))]
+        assert!(!fonts.is_empty(), "no font families came back");
+        assert!(
+            fonts.iter().all(|f| !f.is_empty() && f == f.trim()),
+            "a family name carried blank or padded text: {fonts:?}"
+        );
+        assert!(
+            fonts.windows(2).all(|pair| pair[0] <= pair[1]),
+            "the picker relies on the list already being sorted"
+        );
+    }
 }
