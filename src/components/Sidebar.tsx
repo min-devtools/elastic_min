@@ -12,20 +12,16 @@ import type { TabKind } from "../lib/types";
 import { Icon, type IconName } from "../ui/Icon";
 import { pressable } from "../ui/pressable";
 
+// Create Index / Mapping live as quick-links inside the Indexes tab; Nodes / Shards /
+// Templates & ILM / Reindex / All Clusters live as quick-links inside the Cluster tab —
+// keeps this list short while every destination stays one click away.
 const WORKSPACE_NAV: { kind: TabKind; icon: IconName; iconClass: string; label: string; meta?: string }[] = [
   { kind: "welcome", icon: "sparkles", iconClass: "soft-blue", label: "Welcome" },
   { kind: "query", icon: "query", iconClass: "soft-blue", label: "Query Editor", meta: "⌘↵" },
   { kind: "quick-query", icon: "quick-query", iconClass: "soft-green", label: "Quick Query", meta: "mapping" },
   { kind: "docs", icon: "docs", iconClass: "soft-green", label: "Documents", meta: "⌘⇧D" },
   { kind: "indexes", icon: "indexes", iconClass: "soft-orange", label: "All Indexes" },
-  { kind: "mapping", icon: "mapping", iconClass: "soft-blue", label: "Mapping" },
-  { kind: "create-index", icon: "folder-plus", iconClass: "soft-green", label: "Create Index" },
   { kind: "cluster", icon: "cluster", iconClass: "soft-green", label: "Cluster" },
-  { kind: "nodes", icon: "server", iconClass: "soft-green", label: "Nodes" },
-  { kind: "shards", icon: "shards", iconClass: "soft-orange", label: "Shards" },
-  { kind: "overview", icon: "globe", iconClass: "soft-blue", label: "All Clusters" },
-  { kind: "templates", icon: "template", iconClass: "soft-blue", label: "Templates & ILM" },
-  { kind: "reindex", icon: "reindex", iconClass: "soft-green", label: "Reindex" },
   { kind: "history", icon: "history", iconClass: "soft-orange", label: "Query History" },
   { kind: "saved-queries", icon: "save", iconClass: "soft-blue", label: "Saved Queries" },
   { kind: "settings", icon: "settings", iconClass: "soft-orange", label: "Settings", meta: "⌘," },
@@ -133,27 +129,33 @@ export function Sidebar() {
     showToast("Connection duplicated", copy.name);
   };
 
-  // WebKit (Tauri macOS) doesn't focus rows on click, so per-node onKeyDown won't fire.
-  // Listen globally and act on the active connection; stay out of inputs and open dialogs.
+  // Listen globally because WebKit does not reliably dispatch modified shortcuts
+  // through a div, but only act when a connection row owns keyboard focus.
   useEffect(() => {
-    if (!activeConnId) return;
     const onKey = (event: KeyboardEvent) => {
       if (useApp.getState().dialog) return;
       const el = document.activeElement as HTMLElement | null;
       const editable = !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
       if (editable) return;
+      const focusedConnId = el
+        ?.closest<HTMLElement>("[data-connection-id]")
+        ?.dataset.connectionId;
+      if (
+        !focusedConnId ||
+        !connections.some((connection) => connection.id === focusedConnId)
+      ) return;
       const mod = event.metaKey || event.ctrlKey;
       if (!mod || event.shiftKey) return;
       const key = event.key.toLowerCase();
-      if (key === "d") { event.preventDefault(); duplicateConn(activeConnId); }
-      else if (key === "e") { event.preventDefault(); editConn(activeConnId); }
+      if (key === "d") { event.preventDefault(); duplicateConn(focusedConnId); }
+      else if (key === "e") { event.preventDefault(); editConn(focusedConnId); }
       // ⌘⌫ only — a plain Backspace outside inputs is too easy to hit by accident
-      else if (event.key === "Delete" || event.key === "Backspace") { event.preventDefault(); void confirmDeleteConnection(activeConnId); }
+      else if (event.key === "Delete" || event.key === "Backspace") { event.preventDefault(); void confirmDeleteConnection(focusedConnId); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeConnId, connections]);
+  }, [connections]);
 
   const connMenuItems: ContextMenuItem[] = connMenu
     ? [
@@ -229,8 +231,10 @@ export function Sidebar() {
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ type: "spring", stiffness: 450, damping: 32 }}
                 draggable
+                data-connection-id={c.id}
                 className={`nav-item ${c.id === activeConnId ? "active" : ""} ${dragId === c.id ? "dragging" : ""} ${dropTarget?.id === c.id && dragId && dragId !== c.id ? (dropTarget.before ? "drop-before" : "drop-after") : ""}`}
                 onClick={() => setActiveConn(c.id)}
+                onPointerDown={(e) => e.currentTarget.focus()}
                 {...pressable(() => setActiveConn(c.id))}
                 onContextMenu={(e) => {
                   e.preventDefault();

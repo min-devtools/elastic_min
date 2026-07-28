@@ -24,9 +24,11 @@ test("reorderVisible maps header indices back past hidden columns", () => {
   assert.deepEqual(reorderVisible(all, ["a", "b", "c"], 0, 1), ["hidden", "b", "a", "c"]);
 });
 
-test("syncColumnOrder keeps user order, appends new columns, drops gone ones", () => {
+test("syncColumnOrder keeps user order, appends new columns, and preserves sparse fields", () => {
   assert.deepEqual(syncColumnOrder(["c", "a"], ["a", "b", "c"]), ["c", "a", "b"]);
-  assert.deepEqual(syncColumnOrder(["c", "a"], ["a"]), ["a"]);
+  // A field missing from the current page/result sample can reappear later.
+  // Do not silently remove the user's column while browsing paginated data.
+  assert.deepEqual(syncColumnOrder(["c", "a"], ["a"]), ["c", "a"]);
 });
 
 test("syncColumnOrder returns prev by reference when nothing changed (guards a render loop)", () => {

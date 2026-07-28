@@ -191,6 +191,7 @@ export function ColumnControls({
                       onDragEnd={onDragEnd}
                     >
                       <button type="button" className="path-dropdown-check" title={visible ? "Hide column" : "Show column"}
+                        aria-label={`${visible ? "Hide" : "Show"} ${c} column`}
                         onClick={() => onToggle(c)}>
                         <Icon name={visible ? "check" : "x"} size={13} />
                       </button>

@@ -235,6 +235,9 @@ export function IndexesView({ active }: { active: boolean }) {
         <span style={{ color: "var(--text-3)" }}>
           Click a row to browse documents · right-click for actions.
         </span>
+        <ToolButton onClick={() => openTab("mapping")}>
+          <Icon name="mapping" /> Mapping
+        </ToolButton>
         <ToolButton variant="primary" onClick={() => openTab("create-index")}>
           <Icon name="plus" /> Create index
         </ToolButton>

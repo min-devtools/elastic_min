@@ -19,6 +19,11 @@ import { formatNumber, formatValue, getPath, valueClass } from "../../lib/format
 import { runQueryTab } from "../../lib/runQuery";
 import { sortRows, useSort } from "../../lib/useSort";
 import { reorder, reorderVisible, syncColumnOrder } from "../../lib/columnOrder";
+import {
+  nextGridPosition,
+  resolveTabbableGridPosition,
+  type GridPosition,
+} from "../../lib/gridNavigation";
 import { exportFilename, hitsToCsv, hitsToNdjson } from "../../lib/exportHits";
 import { scrollAllHits } from "../../lib/exportAll";
 import type { EsHit } from "../../lib/types";
@@ -27,6 +32,7 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
   const conn = useActiveConnection();
   const qt = useApp((s) => s.queryTabs[tabId]);
   const selectedDoc = useApp((s) => s.selectedDoc);
+  const focusField = useApp((s) => s.focusField);
   const showToast = useApp((s) => s.showToast);
   const openDialog = useApp((s) => s.openDialog);
   const [paths, setPaths] = useState<string[]>([]);
@@ -35,6 +41,7 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [activeCopyCell, setActiveCopyCell] = useState<GridPosition | null>(null);
   // raw top-level columns by default; normalized JSON-path view is opt-in
   const [normalized, setNormalized] = useState(false);
   const [view, setView] = useState<"table" | "json">("table");
@@ -61,6 +68,7 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
   useEffect(() => {
     setSelected(new Set());
     setPage(1);
+    setActiveCopyCell(null);
     const rawObj = result?.raw as Record<string, unknown> | null;
     const hasAggs =
       !!rawObj && typeof rawObj === "object" && ("aggregations" in rawObj || "aggs" in rawObj);
@@ -138,6 +146,20 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
   const allPageSelected = paged.length > 0 && paged.every((h) => selected.has(keyOf(h)));
 
   const columns = normalized ? paths.filter((p) => enabledPaths.has(p)) : columnOrder.filter((c) => !hiddenColumns.has(c));
+  const selectedCopyRow = selectedDoc
+    ? paged.findIndex((hit) => keyOf(hit) === keyOf(selectedDoc))
+    : -1;
+  const selectedCopyColumn = focusField ? columns.indexOf(focusField) : -1;
+  const selectedCopyCell =
+    selectedCopyRow >= 0 && selectedCopyColumn >= 0
+      ? { row: selectedCopyRow, col: selectedCopyColumn }
+      : null;
+  const tabbableCopyCell = resolveTabbableGridPosition(
+    activeCopyCell,
+    selectedCopyCell,
+    paged.length,
+    columns.length,
+  );
 
   const toggleColumn = (col: string) => {
     setHiddenColumns((prev) => {
@@ -151,7 +173,7 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
   const moveColumn = (from: number, to: number) => setColumnOrder((prev) => reorder(prev, from, to));
 
   const showAllColumns = () => setHiddenColumns(new Set());
-  const hideAllColumns = () => setHiddenColumns(new Set(rawColumns));
+  const hideAllColumns = () => setHiddenColumns(new Set(columnOrder));
 
   const movePath = (from: number, to: number) => setPaths((prev) => reorder(prev, from, to));
 
@@ -460,7 +482,7 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
           </div>
         )}
         {!result?.error && view === "table" && hits && (
-          <table className="result-reveal" key={`${view}-${result?.timeMs ?? 0}`}>
+          <table>
             <thead>
               <tr>
                 <th>
@@ -514,7 +536,7 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
               </tr>
             </thead>
             <tbody>
-              {paged.map((h) => (
+              {paged.map((h, rowIndex) => (
                 <tr
                   key={keyOf(h)}
                   className={
@@ -531,23 +553,59 @@ export function ResultsPanel({ tabId }: { tabId: string }) {
                     />
                   </td>
                   <td><span className="cell-id">{h._id}</span></td>
-                  {columns.map((c) => {
+                  {columns.map((c, columnIndex) => {
                     const value = getPath(h._source ?? {}, c);
+                    const cellKey = `${rowIndex}:${columnIndex}`;
+                    const copyTabbable =
+                      tabbableCopyCell?.row === rowIndex &&
+                      tabbableCopyCell.col === columnIndex;
                     return (
                       <td
                         key={c}
-                        title="Click: inspect · double-click: copy value"
+                        className="copyable-cell"
+                        title="Click to inspect this field"
                         onClick={(e) => {
                           e.stopPropagation();
+                          setActiveCopyCell({ row: rowIndex, col: columnIndex });
                           void selectDocWithConfirm(h, c);
-                        }}
-                        onDoubleClick={(e) => {
-                          e.stopPropagation();
-                          void writeText(formatValue(value));
-                          showToast("Copied", `${c} value copied.`);
                         }}
                       >
                         <span className={`path-value ${valueClass(c, value)}`}>{formatValue(value)}</span>
+                        <button
+                          type="button"
+                          className="cell-copy"
+                          title={`Copy ${c} value`}
+                          aria-label={`Copy ${c} value`}
+                          data-copy-cell={cellKey}
+                          tabIndex={copyTabbable ? 0 : -1}
+                          onFocus={() => setActiveCopyCell({ row: rowIndex, col: columnIndex })}
+                          onKeyDown={(e) => {
+                            const next = nextGridPosition(
+                              rowIndex,
+                              columnIndex,
+                              e.key,
+                              paged.length,
+                              columns.length,
+                            );
+                            if (!next) return;
+                            e.preventDefault();
+                            const nextKey = `${next.row}:${next.col}`;
+                            setActiveCopyCell(next);
+                            const table = e.currentTarget.closest("table");
+                            requestAnimationFrame(() => {
+                              table
+                                ?.querySelector<HTMLButtonElement>(`[data-copy-cell="${nextKey}"]`)
+                                ?.focus();
+                            });
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void writeText(formatValue(value));
+                            showToast("Copied", `${c} value copied.`);
+                          }}
+                        >
+                          <Icon name="copy" size={12} />
+                        </button>
                       </td>
                     );
                   })}

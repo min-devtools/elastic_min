@@ -39,7 +39,14 @@ export function Titlebar() {
         <kbd>⌘K</kbd>
       </button>
       <div className="toolbar">
-        <ToolButton iconOnly variant="primary" title="Run current query (⌘↵)" aria-label="Run current query" onClick={runActiveQuery}>
+        <ToolButton
+          iconOnly
+          variant="primary"
+          title="Run current query (⌘↵)"
+          aria-label="Run current query"
+          disabled={activeTabKind !== "query" || !conn || running}
+          onClick={runActiveQuery}
+        >
           <Icon name="play" />
         </ToolButton>
         <ToolButton iconOnly title="New query tab (⌘N)" aria-label="New query tab" onClick={() => newQueryTab()}>

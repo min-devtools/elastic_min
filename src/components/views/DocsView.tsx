@@ -15,6 +15,11 @@ import { esJson } from "../../lib/es";
 import { formatDocCount, formatNumber, formatValue, getPath, valueClass } from "../../lib/format";
 import { nextDocumentSearch } from "../../lib/documentSearch";
 import { reorder, reorderVisible, syncColumnOrder } from "../../lib/columnOrder";
+import {
+  nextGridPosition,
+  resolveTabbableGridPosition,
+  type GridPosition,
+} from "../../lib/gridNavigation";
 import type { EsHit } from "../../lib/types";
 
 const PAGE_SIZE = 50;
@@ -24,11 +29,13 @@ type SortDir = "desc" | "asc";
 export function DocsView({ tabId, active }: { tabId: string; active: boolean }) {
   const conn = useActiveConnection();
   const selectedDoc = useApp((s) => s.selectedDoc);
+  const focusField = useApp((s) => s.focusField);
   const showToast = useApp((s) => s.showToast);
   const setDocsTabIndex = useApp((s) => s.setDocsTabIndex);
   const dt = useApp((s) => s.docsTabs[tabId]);
   const indices = useIndices();
   const index = dt?.index ?? "";
+  const dataScope = `${conn?.id ?? ""}:${index}`;
   const mapping = useMappingFields(index || null);
   const [filter, setFilter] = useState("");
   const [applied, setApplied] = useState("");
@@ -41,8 +48,9 @@ export function DocsView({ tabId, active }: { tabId: string; active: boolean }) 
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [activeCopyCell, setActiveCopyCell] = useState<GridPosition | null>(null);
 
-  // reset per-connection search state when the active connection changes
+  // Search and table preferences belong to one connection/index pair.
   useEffect(() => {
     setFilter("");
     setApplied("");
@@ -53,7 +61,8 @@ export function DocsView({ tabId, active }: { tabId: string; active: boolean }) 
     setEnabledPaths(new Set());
     setColumnOrder([]);
     setHiddenColumns(new Set());
-  }, [conn?.id]);
+    setActiveCopyCell(null);
+  }, [conn?.id, index]);
 
   // sort on .keyword subfield when the mapping says text + keyword
   const sortField = (col: string): string => {
@@ -81,12 +90,19 @@ export function DocsView({ tabId, active }: { tabId: string; active: boolean }) 
       const res = await esJson<any>(conn!, "POST", `/${encodeURIComponent(index)}/_search`, body);
       const total =
         typeof res.hits?.total === "number" ? res.hits.total : res.hits?.total?.value ?? 0;
-      return { hits: (res.hits?.hits ?? []) as EsHit[], total: total as number };
+      return {
+        scope: dataScope,
+        hits: (res.hits?.hits ?? []) as EsHit[],
+        total: total as number,
+      };
     },
   });
 
-  const hits = search.data?.hits ?? [];
-  const total = search.data?.total ?? 0;
+  // placeholderData is useful while paging, but must never flash rows from
+  // another index/connection when the picker changes.
+  const currentData = search.data?.scope === dataScope ? search.data : undefined;
+  const hits = currentData?.hits ?? [];
+  const total = currentData?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const rawColumns = useMemo(() => {
@@ -100,6 +116,20 @@ export function DocsView({ tabId, active }: { tabId: string; active: boolean }) 
     setColumnOrder((prev) => syncColumnOrder(prev, rawColumns));
   }, [rawColumns]);
   const columns = normalized ? paths.filter((p) => enabledPaths.has(p)) : columnOrder.filter((c) => !hiddenColumns.has(c));
+  const selectedCopyRow = selectedDoc
+    ? hits.findIndex((hit) => hit._index === selectedDoc._index && hit._id === selectedDoc._id)
+    : -1;
+  const selectedCopyColumn = focusField ? columns.indexOf(focusField) : -1;
+  const selectedCopyCell =
+    selectedCopyRow >= 0 && selectedCopyColumn >= 0
+      ? { row: selectedCopyRow, col: selectedCopyColumn }
+      : null;
+  const tabbableCopyCell = resolveTabbableGridPosition(
+    activeCopyCell,
+    selectedCopyCell,
+    hits.length,
+    columns.length,
+  );
 
   const toggleColumn = (col: string) => {
     setHiddenColumns((prev) => {
@@ -113,7 +143,7 @@ export function DocsView({ tabId, active }: { tabId: string; active: boolean }) 
   const moveColumn = (from: number, to: number) => setColumnOrder((prev) => reorder(prev, from, to));
 
   const showAllColumns = () => setHiddenColumns(new Set());
-  const hideAllColumns = () => setHiddenColumns(new Set(rawColumns));
+  const hideAllColumns = () => setHiddenColumns(new Set(columnOrder));
 
   if (!dt) return null;
 
@@ -305,7 +335,7 @@ export function DocsView({ tabId, active }: { tabId: string; active: boolean }) 
             </tr>
           </thead>
           <tbody>
-            {hits.map((h) => (
+            {hits.map((h, rowIndex) => (
               <tr
                 key={`${h._index}/${h._id}`}
                 className={
@@ -316,22 +346,59 @@ export function DocsView({ tabId, active }: { tabId: string; active: boolean }) 
                 onClick={() => void selectDocWithConfirm(h)}
               >
                 <td><span className="cell-id">{h._id}</span></td>
-                {columns.map((c) => {
+                {columns.map((c, columnIndex) => {
                   const v = getPath(h._source ?? {}, c);
+                  const cellKey = `${rowIndex}:${columnIndex}`;
+                  const copyTabbable =
+                    tabbableCopyCell?.row === rowIndex &&
+                    tabbableCopyCell.col === columnIndex;
                   return (
                     <td
                       key={c}
-                      title="Click: inspect · double-click: copy value"
+                      className="copyable-cell"
+                      title="Click to inspect this field"
                       onClick={(e) => {
                         e.stopPropagation();
+                        setActiveCopyCell({ row: rowIndex, col: columnIndex });
                         void selectDocWithConfirm(h, c);
-                      }}
-                      onDoubleClick={() => {
-                        void writeText(formatValue(v));
-                        showToast("Copied", `${c} value copied.`);
                       }}
                     >
                       <span className={`path-value ${valueClass(c, v)}`}>{formatValue(v)}</span>
+                      <button
+                        type="button"
+                        className="cell-copy"
+                        title={`Copy ${c} value`}
+                        aria-label={`Copy ${c} value`}
+                        data-copy-cell={cellKey}
+                        tabIndex={copyTabbable ? 0 : -1}
+                        onFocus={() => setActiveCopyCell({ row: rowIndex, col: columnIndex })}
+                        onKeyDown={(e) => {
+                          const next = nextGridPosition(
+                            rowIndex,
+                            columnIndex,
+                            e.key,
+                            hits.length,
+                            columns.length,
+                          );
+                          if (!next) return;
+                          e.preventDefault();
+                          const nextKey = `${next.row}:${next.col}`;
+                          setActiveCopyCell(next);
+                          const table = e.currentTarget.closest("table");
+                          requestAnimationFrame(() => {
+                            table
+                              ?.querySelector<HTMLButtonElement>(`[data-copy-cell="${nextKey}"]`)
+                              ?.focus();
+                          });
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void writeText(formatValue(v));
+                          showToast("Copied", `${c} value copied.`);
+                        }}
+                      >
+                        <Icon name="copy" size={12} />
+                      </button>
                     </td>
                   );
                 })}

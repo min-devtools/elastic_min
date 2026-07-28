@@ -60,6 +60,38 @@ body.light .editor-pane { background: var(--editor-bg); }
    scoped to .results only so it doesn't ripple into other apps' tables */
 .results tbody tr td { transition: background var(--motion-fast) var(--ease-ui); }
 
+.copyable-cell {
+  position: relative;
+  padding-right: 34px;
+}
+
+.cell-copy {
+  position: absolute;
+  top: 50%;
+  right: 5px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  transform: translateY(-50%);
+  border: 1px solid var(--line-2);
+  border-radius: 5px;
+  color: var(--text-2);
+  background: var(--pane);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--motion-fast) var(--ease-ui);
+}
+
+.copyable-cell:hover .cell-copy,
+.cell-copy:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.cell-copy:hover { color: var(--text); border-color: var(--blue); }
+
 .result-foot {
   display: flex;
   align-items: center;

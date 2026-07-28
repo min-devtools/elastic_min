@@ -1,6 +1,8 @@
 import { Metric, Panel, BarLine } from "../../ui/MetricPanel";
 import { Kv } from "../../ui/Kv";
 import { Sparkline } from "../../ui/Sparkline";
+import { ToolButton } from "../../ui/ToolButton";
+import { Icon, type IconName } from "../../ui/Icon";
 import {
   useActiveConnection,
   useClusterHealth,
@@ -12,6 +14,17 @@ import {
 import { gaugeSeries, ratesPerSec } from "../../lib/metricsHistory";
 import { formatDocCount, formatNumber } from "../../lib/format";
 import { useApp } from "../../store";
+import type { TabKind } from "../../lib/types";
+
+// Nodes / Shards / Templates & ILM / Reindex / All Clusters used to be their own sidebar
+// entries — now they're one click from here instead of cluttering the nav list.
+const CLUSTER_LINKS: { kind: TabKind; icon: IconName; label: string }[] = [
+  { kind: "nodes", icon: "server", label: "Nodes" },
+  { kind: "shards", icon: "shards", label: "Shards" },
+  { kind: "templates", icon: "template", label: "Templates & ILM" },
+  { kind: "reindex", icon: "reindex", label: "Reindex" },
+  { kind: "overview", icon: "globe", label: "All Clusters" },
+];
 
 function SparkCell({
   label,
@@ -67,6 +80,13 @@ export function ClusterView({ active }: { active: boolean }) {
   return (
     <section className={`content cluster-view ${active ? "active" : ""}`}>
       <div className="cluster-main">
+        <div className="seg" style={{ marginBottom: 14, gap: 8, flexWrap: "wrap" }}>
+          {CLUSTER_LINKS.map((l) => (
+            <ToolButton key={l.kind} onClick={() => useApp.getState().openTab(l.kind)}>
+              <Icon name={l.icon} /> {l.label}
+            </ToolButton>
+          ))}
+        </div>
         {!conn && <div className="empty-note">Connect to a cluster to see live health.</div>}
         <div className="dense-grid">
           <Metric

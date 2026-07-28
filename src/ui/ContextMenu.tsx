@@ -20,6 +20,7 @@ interface Props {
 
 export function ContextMenu({ x, y, items, onClose }: Props) {
   const ref = useRef<HTMLDivElement>(null);
+  const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
@@ -45,19 +46,45 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
     if (rect.bottom > window.innerHeight) el.style.top = `${window.innerHeight - rect.height - 12}px`;
   }, [x, y]);
 
+  useEffect(() => {
+    itemRefs.current[0]?.focus();
+  }, [x, y]);
+
+  const onMenuKeyDown = (event: React.KeyboardEvent) => {
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const available = itemRefs.current.filter((item): item is HTMLButtonElement => !!item);
+    if (!available.length) return;
+    const current = Math.max(0, available.indexOf(document.activeElement as HTMLButtonElement));
+    const next =
+      event.key === "Home" ? 0
+      : event.key === "End" ? available.length - 1
+      : event.key === "ArrowDown" ? (current + 1) % available.length
+      : (current - 1 + available.length) % available.length;
+    available[next]?.focus();
+  };
+
   return (
     <motion.div
       ref={ref}
       className="index-context-menu"
+      role="menu"
+      aria-label="Actions"
+      onKeyDown={onMenuKeyDown}
       style={{ left: x, top: y }}
       initial={{ opacity: 0, scale: 0.93, y: -4 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.93 }}
       transition={{ duration: 0.14, ease: [0.32, 0.72, 0, 1] }}
     >
-      {items.map((item) => (
-        <div
+      {items.map((item, index) => (
+        <button
           key={item.label}
+          ref={(node) => {
+            itemRefs.current[index] = node;
+          }}
+          type="button"
+          role="menuitem"
           className="context-item"
           onClick={() => {
             item.onClick();
@@ -67,7 +94,7 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
           <Icon name={item.icon} size={15} />
           {item.strong ? <strong>{item.label}</strong> : <span>{item.label}</span>}
           {item.kbd ? <span className="kbd">{item.kbd}</span> : <span />}
-        </div>
+        </button>
       ))}
     </motion.div>
   );

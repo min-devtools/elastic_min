@@ -18,10 +18,15 @@ export function reorderVisible(all: string[], visible: string[], from: number, t
   return reorder(all, all.indexOf(visible[from]), all.indexOf(visible[to]));
 }
 
-/** Keep the user's order, append columns the new result set introduced. Returns `prev` when nothing changed. */
+/**
+ * Keep the user's order and append columns the new result set introduced.
+ *
+ * A result page is only a sample of the index schema. Previously seen columns
+ * must survive sparse pages so they do not vanish while the user is browsing.
+ * Returns `prev` when nothing changed.
+ */
 export function syncColumnOrder(prev: string[], discovered: string[]): string[] {
-  const keep = prev.filter((c) => discovered.includes(c));
   const add = discovered.filter((c) => !prev.includes(c));
-  if (add.length === 0 && keep.length === prev.length) return prev;
-  return [...keep, ...add];
+  if (add.length === 0) return prev;
+  return [...prev, ...add];
 }

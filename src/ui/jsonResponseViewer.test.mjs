@@ -51,6 +51,12 @@ test("results panel does not remount Monaco to replay the reveal keyframe", asyn
   assert.doesNotMatch(panel, /result-editor-host[^\n]*result-reveal/);
 });
 
+test("results table does not animate the table element itself", async () => {
+  const panel = await read("components/views/ResultsPanel.tsx");
+  // A transformed table with sticky headers intermittently disappears in WKWebView.
+  assert.doesNotMatch(panel, /<table[^>]*className="result-reveal"/);
+});
+
 test("results panel head ignores double-clicks aimed at its own controls", async () => {
   const panel = await read("components/views/ResultsPanel.tsx");
   assert.match(panel, /closest\("input, textarea, button, select, a"\)/);
@@ -71,4 +77,3 @@ test("diff modal leaves mount/unmount to its caller's AnimatePresence", async ()
   const inspector = await read("components/Inspector.tsx");
   assert.match(inspector, /<AnimatePresence>[\s\S]{0,80}diffOpen && selectedDoc/);
 });
-
