@@ -489,6 +489,7 @@ body.light .editor-pane { background: var(--editor-bg); }
 }
 
 .quick-preview-head {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;

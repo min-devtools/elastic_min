@@ -66,10 +66,39 @@ interface CatIndexRow {
   rep: string;
 }
 
+interface IndexTermsAgg {
+  _shards: { failed: number };
+  aggregations?: { by_index?: { buckets: { key: string; doc_count: number }[] } };
+}
+
+/**
+ * Root-document count per index, in one request.
+ * `_cat/indices` reports Lucene docs, which counts every `nested` object as its
+ * own hidden doc — an index with nested fields shows inflated counts there.
+ * Returns an empty map on failure or partial shard results; callers fall back to cat.
+ */
+async function fetchRootDocCounts(conn: Connection): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  try {
+    const res = await esJson<IndexTermsAgg>(
+      conn,
+      "POST",
+      "/_search?ignore_unavailable=true",
+      JSON.stringify({ size: 0, aggs: { by_index: { terms: { field: "_index", size: 10000 } } } }),
+    );
+    if (res._shards?.failed) return out;
+    for (const b of res.aggregations?.by_index?.buckets ?? []) out.set(b.key, b.doc_count);
+  } catch {
+    // ponytail: any failure (perms, old ES, timeout) just falls back to cat counts
+  }
+  return out;
+}
+
 export async function fetchIndices(conn: Connection): Promise<IndexInfo[]> {
-  const [rows, aliasRows] = await Promise.all([
+  const [rows, aliasRows, rootCounts] = await Promise.all([
     esJson<CatIndexRow[]>(conn, "GET", "/_cat/indices?format=json&h=health,status,index,docs.count,store.size,pri,rep"),
     esJson<{ alias: string; index: string }[]>(conn, "GET", "/_cat/aliases?format=json&h=alias,index").catch(() => []),
+    fetchRootDocCounts(conn),
   ]);
   const aliasesByIndex = new Map<string, string[]>();
   for (const a of aliasRows) {
@@ -82,7 +111,7 @@ export async function fetchIndices(conn: Connection): Promise<IndexInfo[]> {
       health: r.health,
       status: r.status,
       index: r.index,
-      docsCount: Number(r["docs.count"] ?? 0),
+      docsCount: rootCounts.get(r.index) ?? Number(r["docs.count"] ?? 0),
       storeSize: r["store.size"] ?? "—",
       pri: r.pri,
       rep: r.rep,

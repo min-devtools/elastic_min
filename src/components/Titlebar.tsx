@@ -20,10 +20,17 @@ export function Titlebar() {
   const openTab = useApp((s) => s.openTab);
   const activeTabId = useApp((s) => s.activeTabId);
   const activeTabKind = useApp((s) => s.tabs.find((t) => t.id === s.activeTabId)?.kind);
+  const activeDocsIndex = useApp((s) => (s.tabs.find((t) => t.id === s.activeTabId)?.kind === "docs" ? s.docsTabs[s.activeTabId]?.index : undefined));
   const running = useApp(
     (s) => s.tabs.find((t) => t.id === s.activeTabId)?.kind === "query" && !!s.queryTabs[s.activeTabId]?.running,
   );
   const queryClient = useQueryClient();
+  const isDocs = activeTabKind === "docs";
+  const primaryDisabled = isDocs ? (!conn || !activeDocsIndex) : (activeTabKind !== "query" || !conn || running);
+  const runPrimary = () => {
+    if (isDocs) document.querySelector<HTMLFormElement>(`#docs-search-${activeTabId}`)?.requestSubmit();
+    else runActiveQuery();
+  };
 
   return (
     <header className="titlebar" data-tauri-drag-region>
@@ -42,10 +49,10 @@ export function Titlebar() {
         <ToolButton
           iconOnly
           variant="primary"
-          title="Run current query (⌘↵)"
-          aria-label="Run current query"
-          disabled={activeTabKind !== "query" || !conn || running}
-          onClick={runActiveQuery}
+          title={isDocs ? "Refresh documents (⌘↵)" : "Run current query (⌘↵)"}
+          aria-label={isDocs ? "Refresh documents" : "Run current query"}
+          disabled={primaryDisabled}
+          onClick={runPrimary}
         >
           <Icon name="play" />
         </ToolButton>

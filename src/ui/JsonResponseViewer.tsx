@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState } from "react";
-import { normalizeJson, normalizeJsonMany } from "../lib/normalizeJson";
+import { useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { collectPaths, normalizeJson, normalizeJsonMany, rankPaths } from "../lib/normalizeJson";
 import { JsonEditor } from "./JsonEditor";
 import { Icon } from "./Icon";
 
@@ -19,6 +19,14 @@ export function JsonResponseViewer({ value }: { value: string }) {
   const [enabled, setEnabled] = useState<Set<string>>(new Set());
   const [normalize, setNormalize] = useState(false);
   const [error, setError] = useState("");
+  const [open, setOpen] = useState(false);
+  const [sel, setSel] = useState(-1);
+
+  const known = useMemo(() => {
+    try { return collectPaths(JSON.parse(value)); } catch { return []; }
+  }, [value]);
+  const matches = useMemo(() => rankPaths(known, draft), [known, draft]);
+  const suggesting = open && matches.length > 0;
 
   const active = paths.filter((p) => enabled.has(p));
   const display = useMemo(() => {
@@ -41,6 +49,8 @@ export function JsonResponseViewer({ value }: { value: string }) {
       setNormalize(true);
       setDraft("");
       setError("");
+      setOpen(false);
+      setSel(-1);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Invalid JSON path.");
     }
@@ -64,15 +74,49 @@ export function JsonResponseViewer({ value }: { value: string }) {
     requestAnimationFrame(() => { draftRef.current?.focus(); draftRef.current?.select(); });
   };
 
+  const pickSuggestion = (path: string) => {
+    setDraft(path);
+    setSel(-1);
+    draftRef.current?.focus();
+  };
+
+  // ↑↓ browse, Tab/click completes, Enter adds — Enter only completes after browsing
+  const onDraftKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (matches.length > 0 && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
+      event.preventDefault();
+      setOpen(true);
+      setSel((i) => (i + (event.key === "ArrowDown" ? 1 : matches.length)) % matches.length);
+      return;
+    }
+    if (event.key === "Escape" && suggesting) { event.preventDefault(); setOpen(false); return; }
+    if (event.key === "Tab" && suggesting) { event.preventDefault(); pickSuggestion(matches[Math.max(sel, 0)]); return; }
+    if (event.key === "Enter") {
+      if (suggesting && sel >= 0) pickSuggestion(matches[sel]);
+      else addPath();
+    }
+  };
+
   return <div className="json-response-viewer">
     <div className="json-response-tools">
-      <input
-        ref={draftRef}
-        value={draft}
-        onChange={(event) => setDraft(event.target.value)}
-        onKeyDown={(event) => event.key === "Enter" && addPath()}
-        placeholder="hits.hits.$._source.name or value.$.a"
-      />
+      <div className="json-suggest-wrap">
+        <input
+          ref={draftRef}
+          value={draft}
+          onChange={(event) => { setDraft(event.target.value); setOpen(true); setSel(-1); }}
+          onKeyDown={onDraftKeyDown}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setOpen(false)}
+          placeholder="hits.hits.$._source.name or value.$.a"
+        />
+        {suggesting && <div className="json-suggest">
+          {matches.map((path, i) => <button
+            type="button"
+            key={path}
+            className={i === sel ? "sel" : ""}
+            onMouseDown={(event) => { event.preventDefault(); pickSuggestion(path); }}
+          >{path}</button>)}
+        </div>}
+      </div>
       <button type="button" onClick={addPath}>Add path</button>
       <button
         type="button"

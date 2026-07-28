@@ -88,7 +88,7 @@ export function Combobox({ value, options, placeholder, onChange, id }: Props) {
             setInteracted(true);
             setCursor((c) => Math.max(0, c - 1));
           }
-          if (e.key === "Enter" && open && filtered[cursor]) {
+          if (e.key === "Enter" && !e.metaKey && !e.ctrlKey && open && filtered[cursor]) {
             e.preventDefault();
             pick(comboboxEnterValue(value, filtered[cursor].value, interacted));
             (e.target as HTMLInputElement).blur();

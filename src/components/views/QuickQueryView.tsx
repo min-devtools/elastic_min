@@ -6,6 +6,7 @@ import { Badge } from "../../ui/Badge";
 import { StatusDot } from "../../ui/StatusDot";
 import { JsonView } from "../../ui/JsonView";
 import { SectionVeil } from "../../ui/SectionVeil";
+import { LoadingBar } from "../../ui/LoadingBar";
 import { Icon } from "../../ui/Icon";
 import { Combobox } from "../../ui/Combobox";
 import { useApp } from "../../store";
@@ -313,6 +314,7 @@ export function QuickQueryView({ active }: { active: boolean }) {
                 <Icon name="play" /> {previewRunning ? "Running…" : "Run preview"}
               </ToolButton>
             </div>
+            <LoadingBar active={previewRunning} />
           </div>
           <JsonView className="quick-query-code json-tree" value={generated} />
           <SectionVeil on={previewRunning} label="Running preview…" />

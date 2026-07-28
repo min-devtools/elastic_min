@@ -5,6 +5,7 @@ import { ToolButton } from "../../ui/ToolButton";
 import { Badge } from "../../ui/Badge";
 import { Icon } from "../../ui/Icon";
 import { SectionVeil } from "../../ui/SectionVeil";
+import { LoadingBar } from "../../ui/LoadingBar";
 import { SortTh } from "../../ui/SortTh";
 import { Combobox } from "../../ui/Combobox";
 import { ColumnControls } from "../../ui/ColumnControls";
@@ -280,6 +281,7 @@ export function DocsView({ tabId, active }: { tabId: string; active: boolean }) 
             onRemovePath={removePath}
           />
         </div>}
+        <LoadingBar active={search.isFetching} />
       </div>
       {!index ? (
         <NoIndexState
